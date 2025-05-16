@@ -1,0 +1,4 @@
+lightblue - 6cf9ff
+lighterblue - 569fcc
+blue - 1e5c8d
+darkblue - 01245a

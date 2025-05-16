@@ -23,9 +23,7 @@ jarvis-local/
 ├── jarvis_tts/
 │   └── jarvis_tts.py        # Text-to-Speech engine and playback
 ├── jarvis_stt/
-│   └── jarvis_stt.py        # Speech-to-Text with push-to-talk and VAD
-├── requirements.txt         # Python dependencies
-└── README.md                # This file
+    └── jarvis_stt.py        # Speech-to-Text with push-to-talk and VAD
 ```
 
 ## Installation
