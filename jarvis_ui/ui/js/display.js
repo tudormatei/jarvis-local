@@ -1,3 +1,20 @@
+const voiceIcon = document.getElementById("voice-icon");
+let keyPressed = false;
+document.addEventListener("keydown", function (event) {
+  if (event.code === "Space" && !keyPressed) {
+    keyPressed = true;
+    voiceIcon.classList.add("visible");
+    voiceIcon.classList.remove("hidden");
+  }
+});
+document.addEventListener("keyup", function (event) {
+  if (event.code === "Space") {
+    keyPressed = false;
+    voiceIcon.classList.add("hidden");
+    voiceIcon.classList.remove("visible");
+  }
+});
+
 const displayLoader = (shouldDisplay) => {
   // remove existing loaders
   const elements = document.querySelectorAll(`.loader`);

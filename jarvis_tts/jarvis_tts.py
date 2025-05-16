@@ -119,11 +119,6 @@ class JarvisTTS:
 
 if __name__ == "__main__":
     jarvis = JarvisTTS(should_stream=True)
-    print("Finished setup")
-    for _ in range(10):
-        print("\033[91mYourWordHere\033[0m")
-
-    time.sleep(5)
     jarvis.speak("Sir, the Tesseract is showing signs of activity.")
     jarvis.speak("I recommend we inform Director Fury immediately.")
     print("Sleeping...")

@@ -7,51 +7,44 @@ logger = logging.getLogger(__name__)
 class Api:
     """Api that is called from inside JS when audio is finished playing"""
 
-    def audioFinished(self):
-        global voice_finished
-        voice_finished = True
-
-    def muteUnmute(self):
-        global muted
-        muted = not muted
+    def __init__(self):
+        pass
 
 
-def print_message(isUser, message):
-    global window
+class JarvisUI:
+    def __init__(self, width=400, height=700, html_path="./ui/index.html"):
+        self.html_path = html_path
+        self.width = width
+        self.height = height
+        self.window = None
+        self.voice_finished = False
+        self.muted = False
 
-    escaped_message = message.replace("'", "\\'").replace('"', '\\"')
+        self.api = Api()
 
-    js_boolean = 'true' if isUser else 'false'
+    def print_message(self, isUser, message):
+        escaped_message = message.replace("'", "\\'").replace('"', '\\"')
+        js_boolean = 'true' if isUser else 'false'
+        self.window.evaluate_js(
+            f"displayLine({js_boolean}, '{escaped_message}')")
 
-    window.evaluate_js(f"displayLine({js_boolean}, '{escaped_message}')")
+    def showLoader(self, show):
+        js_boolean = 'true' if show else 'false'
+        self.window.evaluate_js(f"displayLoader({js_boolean})")
 
+    def cleanup(self):
+        logger.info("UI Closing window.")
 
-def showLoader(show):
-    global window
-
-    js_boolean = 'true' if show else 'false'
-
-    window.evaluate_js(f"displayLoader({js_boolean})")
-
-
-def cleanup():
-    logger.info("UI Closing window.")
-
-
-def main():
-    global window
-    js_api = Api()
-
-    width = 400
-    height = 700
-
-    window = webview.create_window(
-        'J.A.R.V.I.S.', './ui/index.html', js_api=js_api, width=width, height=height, frameless=True, easy_drag=True)
-    logger.info("UI Started window.")
-    window.events.closed += cleanup
-
-    webview.start(debug=True)
+    def start(self):
+        self.window = webview.create_window(
+            'J.A.R.V.I.S.', url=self.html_path, js_api=self.api,
+            width=self.width, height=self.height, frameless=True, easy_drag=True
+        )
+        logger.info("UI Started window.")
+        self.window.events.closed += self.cleanup
+        webview.start(debug=True)
 
 
 if __name__ == '__main__':
-    main()
+    ui = JarvisUI()
+    ui.start()
