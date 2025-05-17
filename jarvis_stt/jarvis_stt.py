@@ -108,7 +108,7 @@ def transcribe_user_audio(push_to_talk):
     segments, _ = model.transcribe(
         audio,
         language=LANGUAGE,
-        vad_filter=USE_VAD,
+        vad_filter=(not push_to_talk and USE_VAD),
         vad_parameters={
             "min_silence_duration_ms": 200,
             "threshold": 0.5,

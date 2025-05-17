@@ -2,7 +2,7 @@ let audioSocket;
 
 // --- Waveform animation setup ---
 const bufferLength = 60;
-const fftSize = 256; // Should be a power of 2 and <= PCM block size
+const fftSize = 256;
 const marksList = document.getElementById("marks");
 const marks = marksList.children;
 const minTranslateY = 125;
@@ -12,7 +12,7 @@ const maxTranslateY = 170;
 const fft = new FFT(fftSize);
 const input = new Float32Array(fftSize);
 const output = fft.createComplexArray();
-const dataArray = new Uint8Array(bufferLength);
+let latestDataArray = new Uint8Array(bufferLength); // Store latest data for animation
 
 // --- WebSocket PCM data stream setup ---
 function startAudioStream() {
@@ -35,12 +35,12 @@ function startAudioStream() {
       fft.completeSpectrum(output);
 
       // Compute magnitudes and fill dataArray
+      let dataArray = new Uint8Array(bufferLength);
       for (let i = 0; i < bufferLength; i++) {
         const re = output[2 * i];
         const im = output[2 * i + 1];
         const mag = Math.sqrt(re * re + im * im);
-        // Scale to 0-255 for visualization (adjust multiplier for sensitivity)
-        dataArray[i] = Math.min(255, Math.floor(mag * 16));
+        dataArray[i] = Math.min(255, Math.floor(mag * 20));
       }
 
       // --- Your original waveform post-processing ---
@@ -58,23 +58,8 @@ function startAudioStream() {
         dataArray[i] = dataArray[i + 1] - x;
       }
 
-      // --- Animate the waveform ---
-      for (let i = 0; i < marks.length; i++) {
-        const mark = marks[i];
-        // Nonlinear scaling for more dynamic movement
-        let normalizedValue = dataArray[i] / 255;
-        normalizedValue = Math.pow(normalizedValue, 0.7);
-
-        const translateY =
-          minTranslateY + (maxTranslateY - minTranslateY) * normalizedValue;
-        const rotateValue = (360 / marks.length) * i;
-
-        // Optional: color gradient
-        const hue = Math.floor(200 + 100 * normalizedValue); // blue to cyan
-        mark.style.background = `hsl(${hue}, 80%, 60%)`;
-
-        mark.style.transform = `rotate(${rotateValue}deg) translateY(${translateY}px)`;
-      }
+      // Store for animation
+      latestDataArray = dataArray;
     }
   };
   audioSocket.onerror = (err) => {
@@ -85,6 +70,20 @@ function startAudioStream() {
   };
 }
 
+// --- Animation loop at 60 FPS ---
+function updateWaveform() {
+  for (let i = 0; i < marks.length; i++) {
+    const mark = marks[i];
+    const normalizedValue = latestDataArray[i] / 255;
+    const translateY =
+      minTranslateY + (maxTranslateY - minTranslateY) * normalizedValue;
+    const rotateValue = 6 * i;
+    mark.style.transform = `rotate(${rotateValue}deg) translateY(${translateY}px)`;
+  }
+  requestAnimationFrame(updateWaveform);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   startAudioStream();
+  requestAnimationFrame(updateWaveform);
 });

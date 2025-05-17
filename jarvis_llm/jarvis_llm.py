@@ -10,7 +10,7 @@ MODEL_NAME = "jarvis:3b"
 
 # Conversation memory settings
 conversation_history = []
-MAX_INTERACTIONS = 5
+MAX_INTERACTIONS = 3
 
 
 def update_conversation_history(user_input, assistant_response):

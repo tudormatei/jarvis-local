@@ -74,7 +74,7 @@ def main():
     logger.info(f"Output Mode: {args.output.name}")
     logger.info(f"Output Interface: {args.interface.name}")
     logger.info(
-        f"Push to Talk: {args.push_to_talk.name if args.push_to_talk else 'NOT SET'}")
+        f"Push to Talk: {args.push_to_talk.name if args.push_to_talk else 'N/A'}")
 
     jarvis_ui = None
     jarvis_tts = None

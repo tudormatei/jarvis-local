@@ -1,4 +1,3 @@
-import json
 import time
 import torch
 import sounddevice as sd
@@ -25,6 +24,8 @@ class JarvisTTS:
         self.BLOCK_SIZE = 256
         self.audio_queue = queue.Queue()
         self.ui_enabled = ui_enabled
+        self.latest_block = None
+        self._stop_sender = threading.Event()
 
         logger.info(f"Using CUDA: {torch.cuda.is_available()}")
         logger.info("Loading model...")
@@ -43,6 +44,9 @@ class JarvisTTS:
         logger.info("Finished speaker embeddings.")
 
         threading.Thread(target=self._audio_player_thread, daemon=True).start()
+        if self.ui_enabled:
+            threading.Thread(
+                target=self._websocket_sender_thread, daemon=True).start()
 
     def speak(self, text):
         logger.info("TTS First chunk received.")
@@ -56,7 +60,7 @@ class JarvisTTS:
                 first_chunk = True
 
             audio = chunk.cpu().numpy().flatten()
-            audio /= np.max(np.abs(audio), initial=1.0)  # Normalize
+            audio /= np.max(np.abs(audio), initial=1.0)
 
             for start in range(0, len(audio), self.BLOCK_SIZE):
                 block = audio[start:start + self.BLOCK_SIZE]
@@ -65,7 +69,6 @@ class JarvisTTS:
                         block, (0, self.BLOCK_SIZE - len(block)), 'constant')
                 self.audio_queue.put(block.astype(np.float32))
 
-        # Signal end of speech
         self.audio_queue.put(None)
 
     def start_websocket_server(self):
@@ -73,7 +76,7 @@ class JarvisTTS:
             self.websocket_clients.add(websocket)
             try:
                 while True:
-                    await asyncio.sleep(1)  # Keep connection alive
+                    await asyncio.sleep(1)
             except Exception:
                 pass
             finally:
@@ -100,21 +103,42 @@ class JarvisTTS:
                 if block is None:
                     started_playing = False
                     logger.info("TTS Playback finished.")
-                else:
-                    stream.write(block)
                     if self.ui_enabled:
+                        self.latest_block = None
                         for ws in list(getattr(self, "websocket_clients", [])):
                             asyncio.run_coroutine_threadsafe(
-                                ws.send(block.astype(np.float32).tobytes()
+                                ws.send(np.zeros(self.BLOCK_SIZE, dtype=np.float32).tobytes()
                                         ), self.websocket_loop
                             )
+                else:
+                    if self.ui_enabled:
+                        self.latest_block = block.astype(np.float32)
+                    stream.write(block)
                     if not started_playing:
                         logger.info("TTS Playback started.")
                         started_playing = True
 
+    def _websocket_sender_thread(self):
+        while not self._stop_sender.is_set():
+            if (
+                self.ui_enabled
+                and hasattr(self, "websocket_clients")
+                and self.latest_block is not None
+            ):
+                for ws in list(getattr(self, "websocket_clients", [])):
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            ws.send(self.latest_block.tobytes()
+                                    ), self.websocket_loop
+                        )
+                    except Exception as e:
+                        logger.info(f"WebSocket send error: {e}")
+            time.sleep(1/60)
+
     def stop(self):
+        self._stop_sender.set()
         while not self.audio_queue.empty():
-            self.audio_queue.get_nowait()  # Drain remaining audio
+            self.audio_queue.get_nowait()
 
 
 if __name__ == "__main__":

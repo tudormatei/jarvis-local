@@ -11,19 +11,25 @@
 - **Text Mode:** CLI-based chat for keyboard-only interaction.
 - **Configurable Logging:** Adjustable verbosity for debugging or silent operation.
 - **Cross-platform:** Designed for Windows, but adaptable to Linux/Mac.
+- **UI or CLI:** Choose between a graphical interface or command-line.
 
 ## Project Structure
 
 ```
 jarvis-local/
 │
-├── jarvis.py                # Main entry point (CLI interface)
+├── jarvis.py                # Main entry point (service orchestrator)
 ├── jarvis_llm/
 │   └── jarvis_llm.py        # LLM streaming and conversation logic
 ├── jarvis_tts/
 │   └── jarvis_tts.py        # Text-to-Speech engine and playback
 ├── jarvis_stt/
-    └── jarvis_stt.py        # Speech-to-Text with push-to-talk and VAD
+│   └── jarvis_stt.py        # Speech-to-Text with push-to-talk and VAD
+├── jarvis_ui/
+│   └── jarvis_ui.py         # UI logic (webview)
+│   └── ui/                  # UI frontend (HTML/JS/CSS)
+└── utils/
+    └── args.py              # Argument parsing and enums
 ```
 
 ## Installation
@@ -35,50 +41,56 @@ jarvis-local/
    cd jarvis-local
    ```
 
-2. **Install dependencies:**
-   I suggest using conda or miniconda for this.
+2. **Install dependencies:**  
+   (Recommended: use conda or miniconda)
 
    ```sh
    conda env create -f environment.yml
    ```
 
 3. **Download models:**
-
    - **LLM:** Uses Ollama (`ollama run jarvis:3b`) or your configured local model.
    - **TTS:** The finetuned model is already included in the repository.
    - **STT:** Whisper model is auto-downloaded on first run.
 
 ## Usage
 
-### **Text Mode**
+### **Basic Example**
 
 ```sh
-python jarvis.py --mode text
+python jarvis.py --input text --output voice --interface cli
 ```
 
-Type your message and receive spoken responses.
+### **Arguments**
 
-### **Voice Mode**
+| Argument         | Choices         | Required       | Description                                    |
+| ---------------- | --------------- | -------------- | ---------------------------------------------- |
+| `--input`        | `text`, `voice` | Yes            | Input mode: keyboard or microphone             |
+| `--output`       | `text`, `voice` | Yes            | Output mode: text or spoken                    |
+| `--interface`    | `cli`, `ui`     | Yes            | Output interface: command-line or graphical UI |
+| `--push-to-talk` | `on`, `off`     | If input=voice | Enable/disable push-to-talk for voice input    |
+| `--log`          | `info`, `none`  | No             | Set logging level (default: info)              |
 
-1. Push to talk
+#### **Examples**
 
-```sh
-python jarvis.py --mode voice --push-to-talk true
-```
+- **Text input, spoken output, CLI:**
+  ```sh
+  python jarvis.py --input text --output voice --interface cli
+  ```
+- **Voice input, text output, UI, push-to-talk:**
+  ```sh
+  python jarvis.py --input voice --output text --interface ui --push-to-talk on
+  ```
+- **Voice input, spoken output, CLI, no push-to-talk:**
+  ```sh
+  python jarvis.py --input voice --output voice --interface cli --push-to-talk off
+  ```
 
-Hold the spacebar (default) to speak, release to transcribe and get a response.
+#### **Notes**
 
-2. Automatic voice detection (slower):
-
-```sh
-python jarvis.py --mode voice --push-to-talk false
-```
-
-#### **Command-line Options**
-
-- `--mode [text|voice]` — Select input mode.
-- `--push-to-talk [true|false]` — Enable/disable push-to-talk in voice mode.
-- `--log [debug|info|warning|error|critical|none]` — Set logging level.
+- `--push-to-talk` is **required** if `--input voice` is selected.
+- Do **not** use `--push-to-talk` with `--input text`.
+- For UI mode, a browser window will open for interaction.
 
 ## License
 
