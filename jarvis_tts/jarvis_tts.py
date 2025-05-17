@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 class JarvisTTS:
-    def __init__(self, model_path="./models/jarvis_v2/", speaker_sample="./models/jarvis_v2/reference.wav", should_stream=False):
+    def __init__(self, model_path="./models/jarvis_v2/", speaker_sample="./models/jarvis_v2/reference.wav", ui_enabled=False):
         self.SAMPLE_RATE = 24000
         self.BLOCK_SIZE = 256
         self.audio_queue = queue.Queue()
-        self.should_stream = should_stream
+        self.ui_enabled = ui_enabled
 
         logger.info(f"Using CUDA: {torch.cuda.is_available()}")
         logger.info("Loading model...")
@@ -90,7 +90,7 @@ class JarvisTTS:
 
     def _audio_player_thread(self):
         started_playing = False
-        if self.should_stream:
+        if self.ui_enabled:
             if not hasattr(self, "websocket_clients"):
                 self.start_websocket_server()
 
@@ -102,7 +102,7 @@ class JarvisTTS:
                     logger.info("TTS Playback finished.")
                 else:
                     stream.write(block)
-                    if self.should_stream:
+                    if self.ui_enabled:
                         for ws in list(getattr(self, "websocket_clients", [])):
                             asyncio.run_coroutine_threadsafe(
                                 ws.send(block.astype(np.float32).tobytes()
@@ -118,7 +118,7 @@ class JarvisTTS:
 
 
 if __name__ == "__main__":
-    jarvis = JarvisTTS(should_stream=True)
+    jarvis = JarvisTTS(ui_enabled=True)
     jarvis.speak("Sir, the Tesseract is showing signs of activity.")
     jarvis.speak("I recommend we inform Director Fury immediately.")
     print("Sleeping...")
