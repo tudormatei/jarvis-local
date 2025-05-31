@@ -3,10 +3,13 @@ import re
 import ollama
 import logging
 
+from tools.tools import detect_and_handle_tool_call, is_tool_call
+
 logger = logging.getLogger(__name__)
 
 # Initialize Ollama model
-MODEL_NAME = "jarvis:3b"
+MODEL_NAME = "jarvis-tool"  # jarvis:1b, jarvis:3b, jarvis-tool
+TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 # Conversation memory settings
 conversation_history = []
@@ -43,7 +46,6 @@ def handle_sentence_endings(full_response):
 
 
 async def chat_with_jarvis(input_text, is_streaming=True):
-    """Handles streaming responses efficiently."""
     messages = conversation_history + [{"role": "user", "content": input_text}]
     current_characters = ""
     full_response = ""
@@ -71,12 +73,18 @@ async def chat_with_jarvis(input_text, is_streaming=True):
                         logger.info("LLM First sentence sent.")
                         first_sentence = True
 
-                    # Here we could actually send this to voice generation module
+                    # here we already send first sentence to voice generation module
                     yield sentence
+
         logger.info("LLM Finished streaming.")
-        if not is_streaming:
+        if not is_streaming and not is_tool_call(full_response):
             yield full_response
         update_conversation_history(input_text, full_response)
+
+        if TOOLS_ENABLED:
+            tool_response = detect_and_handle_tool_call(full_response)
+            if tool_response:
+                yield tool_response
 
     except Exception as e:
         print(f"Error: {e}")

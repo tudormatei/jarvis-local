@@ -42,7 +42,7 @@ class JarvisUI:
         )
         logger.info("UI Started window.")
         self.window.events.closed += self.cleanup
-        webview.start(debug=True)
+        webview.start(debug=False)
 
 
 if __name__ == '__main__':
