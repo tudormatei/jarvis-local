@@ -1,60 +1,61 @@
-import ast
-import re
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+"""
+Summary of currently implemented tools.
+
+get_weather_report(city, date)
+get_current_time()
+flip_coin()
+"""
 
 
 def get_user_info(user_id, special="none"):
     return f"User {user_id} details retrieved (special: {special})"
 
 
+def get_weather_report(city, date):
+    return f"Now searching weather for city: {city} at date {date}"
+
+
 def play_song(song_name):
-    return f"🎵 Now playing: {song_name}"
+    brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+
+    options = Options()
+    options.binary_location = brave_path
+    options.add_argument("--start-maximized")
+    options.add_argument(
+        "--user-data-dir=C:/Users/tudor/AppData/Local/BraveSoftware/Brave-Browser/User Data")
+    options.add_argument("--profile-directory=Default")
+    options.add_experimental_option("detach", True)
+    options.add_argument("--disable-logging")
+
+    driver = webdriver.Chrome(options=options)
+
+    driver.execute_script("window.open('');")
+
+    driver.switch_to.window(driver.window_handles[-1])
+
+    search_query = song_name.replace(' ', '+')
+    search_url = f"https://www.youtube.com/results?search_query={search_query}"
+    driver.get(search_url)
+
+    wait = WebDriverWait(driver, 15)
+
+    wait.until(EC.visibility_of_element_located((By.ID, "contents")))
+
+    first_video = wait.until(EC.element_to_be_clickable((
+        By.CSS_SELECTOR, "#contents ytd-video-renderer #video-title"
+    )))
+    first_video.click()
+
+    return f"Playing your request, sir."
 
 
-tool_registry = {
-    "get_user_info": get_user_info,
-    "play_song": play_song,
-}
-
-
-def is_tool_call(response_text):
-    tool_call_pattern = r"\[(\w+)\((.*?)\)\]"
-    match = re.search(tool_call_pattern, response_text)
-    return match
-
-
-def detect_and_handle_tool_call(response_text):
-    match = is_tool_call(response_text)
-    if not match:
-        print("❌ No tool call detected in the response.")
-        return None
-
-    func_name = match.group(1)
-    params_str = match.group(2)
-
-    try:
-        fake_call = f"f({params_str})"
-        parsed = ast.parse(fake_call, mode='eval')
-        if not isinstance(parsed.body, ast.Call):
-            raise ValueError("Not a valid function call")
-
-        param_dict = {
-            kw.arg: ast.literal_eval(kw.value)
-            for kw in parsed.body.keywords
-        }
-
-    except Exception as e:
-        print(f"❌ Failed to parse tool call parameters: {e}")
-        return None
-
-    print(f"\n🛠️ Tool call detected: {func_name} with params {param_dict}")
-
-    tool_func = tool_registry.get(func_name)
-    if not tool_func:
-        print(f"❌ Unknown tool function: {func_name}")
-        return None
-
-    try:
-        return tool_func(**param_dict)
-    except Exception as e:
-        print(f"❌ Error while executing '{func_name}': {e}")
-        return None
+if __name__ == "__main__":
+    # for testing purposes
+    play_song("Sicko Mode")

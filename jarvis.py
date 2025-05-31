@@ -40,7 +40,7 @@ def run_jarvis_logic(input_voice_enabled, output_voice_enabled, ui_enabled, push
                     print("JARVIS: Shutting down. Goodbye!")
                     break
 
-                async for sentence in chat_with_jarvis(user_input, is_streaming=True):
+                async for sentence in chat_with_jarvis(user_input):
                     if ui_enabled:
                         jarvis_ui.print_message(isUser=False, message=sentence)
                     elif not ui_enabled:

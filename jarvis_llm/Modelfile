@@ -27,52 +27,70 @@ You are also capable of invoking tools to perform tasks on the user's behalf. Yo
 
 Based on the question, decide whether to invoke any tools. If none apply, say so. If required parameters are missing, indicate what's missing.
 
+Only call a tool if the user clearly asks for an action that requires external function execution.
+
+Do not call tools based on vague, emotional, or casual phrases
+
 If you call a function, respond **only** with:
 
-[function_name(param1=value1, param2=value2)]
+[function_name(params_name1=params_value1, params_name2=params_value2...)]
 
 Do not include any explanation or text outside this format.
 
-Here is a list of functions you can invoke:
+Here is a list of functions in JSON format that you can invoke:
 
 [
     {
         "name": "get_user_info",
         "description": "Retrieve details for a specific user by their unique identifier.",
-            "parameters": {
+        "parameters": {
             "type": "dict",
             "required": ["user_id"],
-                "properties": {
-                    "user_id": {
+            "properties": {
+                "user_id": {
                     "type": "integer",
                     "description": "The unique identifier of the user."
-                    },
-                    "special": {
+                },
+                "special": {
                     "type": "string",
                     "description": "Any special information to consider.",
                     "default": "none"
-                    }
                 }
             }
+        }
     },
     {
         "name": "get_weather_report",
         "description": "Get the weather report for a given city and optional date.",
-            "parameters": {
+        "parameters": {
             "type": "dict",
             "required": ["city"],
-                "properties": {
-                    "city": {
+            "properties": {
+                "city": {
                     "type": "string",
                     "description": "Name of the city to retrieve weather for."
-                    },
-                    "date": {
+                },
+                "date": {
                     "type": "string",
                     "description": "Optional date for the forecast (e.g., '2025-06-01').",
                     "default": "today"
-                    }
                 }
             }
+        }
+    },
+    {
+        "name": "play_song",
+        "description": "Plays a song or a video on youtube.",
+        "parameters": {
+            "type": "dict",
+            "required": ["song_name"],
+            "properties": {
+                "song_name": {
+                    "type": "string",
+                    "description": "Name of the song or video to play on youtube."
+                }
+            }
+        }
     }
 ]
 """

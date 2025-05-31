@@ -1,9 +1,10 @@
+import ast
 import asyncio
 import re
 import ollama
 import logging
 
-from tools.tools import detect_and_handle_tool_call, is_tool_call
+from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,51 @@ TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 # Conversation memory settings
 conversation_history = []
 MAX_INTERACTIONS = 3
+
+
+# make sure to keep this in sync with the tools.py file and Modelfile defined functions
+tool_registry = {
+    "get_user_info": get_user_info,
+    "get_weather_report": get_weather_report,
+    "play_song": play_song
+}
+
+
+def detect_and_handle_tool_call(response_text):
+    tool_call_pattern = r"\[(\w+)\((.*?)\)\]"
+    match = re.search(tool_call_pattern, response_text)
+    if not match:
+        return None
+
+    func_name = match.group(1)
+    params_str = match.group(2)
+
+    try:
+        fake_call = f"f({params_str})"
+        parsed = ast.parse(fake_call, mode='eval')
+        if not isinstance(parsed.body, ast.Call):
+            raise ValueError("Not a valid function call")
+
+        param_dict = {
+            kw.arg: ast.literal_eval(kw.value)
+            for kw in parsed.body.keywords
+        }
+
+    except Exception as e:
+        logger.info("LLM Failed parsing tool parameters.")
+        return None
+
+    tool_func = tool_registry.get(func_name)
+    if not tool_func:
+        logger.info("LLM Unknown tool.")
+        return None
+
+    try:
+        logger.info(f"LLM Calling tool {func_name} with params {param_dict}.")
+        return tool_func(**param_dict)
+    except Exception as e:
+        logger.info(f"LLM Error while executing tool {func_name}.")
+        return None
 
 
 def update_conversation_history(user_input, assistant_response):
@@ -45,7 +91,7 @@ def handle_sentence_endings(full_response):
     return sentence, remaining_text
 
 
-async def chat_with_jarvis(input_text, is_streaming=True):
+async def chat_with_jarvis(input_text):
     messages = conversation_history + [{"role": "user", "content": input_text}]
     current_characters = ""
     full_response = ""
@@ -65,26 +111,23 @@ async def chat_with_jarvis(input_text, is_streaming=True):
             full_response += part["message"]["content"]
             current_characters += part["message"]["content"]
 
-            if is_streaming:
-                sentence, current_characters = handle_sentence_endings(
-                    current_characters)
-                if sentence:
-                    if not first_sentence:
-                        logger.info("LLM First sentence sent.")
-                        first_sentence = True
+            sentence, current_characters = handle_sentence_endings(
+                current_characters)
+            if sentence:
+                if not first_sentence:
+                    logger.info("LLM First sentence sent.")
+                    first_sentence = True
 
-                    # here we already send first sentence to voice generation module
-                    yield sentence
+                # here we already send first sentence to voice generation module
+                yield sentence
 
         logger.info("LLM Finished streaming.")
-        if not is_streaming and not is_tool_call(full_response):
-            yield full_response
-        update_conversation_history(input_text, full_response)
-
         if TOOLS_ENABLED:
             tool_response = detect_and_handle_tool_call(full_response)
             if tool_response:
+                full_response = tool_response
                 yield tool_response
+        update_conversation_history(input_text, full_response)
 
     except Exception as e:
         print(f"Error: {e}")
@@ -99,7 +142,7 @@ async def main():
 
         async for sentence in chat_with_jarvis(user_input):
             print(
-                f"{sentence}",)
+                f"JARVIS: {sentence}",)
 
 if __name__ == "__main__":
     asyncio.run(main())
