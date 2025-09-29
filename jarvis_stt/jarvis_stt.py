@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL_SIZE = "base.en"
+MODEL_SIZE = "small.en"  # base.en or small.en
 SAMPLE_RATE = 16000
 CHUNK_DURATION = 0.1  # seconds, for silence detection
 BUFFER_DURATION = 3.0  # max seconds to record per utterance
@@ -114,10 +114,10 @@ def transcribe_user_audio(push_to_talk):
             "threshold": 0.5,
         }
     )
-    logger.info("SST Finished transcribing.")
     res = ""
     for s in segments:
         res += s.text.strip()
+    logger.info("SST Finished transcribing.")
 
     return res
 

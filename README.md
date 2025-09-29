@@ -2,6 +2,8 @@
 
 **JARVIS Local** is a modular, privacy-focused voice/text assistant that runs entirely on your machine. It combines local Large Language Model (LLM) inference, high-quality Text-to-Speech (TTS), and fast Speech-to-Text (STT) for a seamless conversational AI experience—no cloud required.
 
+[![JARVIS](docs/ui.gif)](docs/ui.gif)
+
 ## Features
 
 - **Local LLM (Ollama/3B):** Fast, streaming responses with conversation memory.
