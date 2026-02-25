@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Ollama model
 MODEL_NAME = "jarvis:3b"  # jarvis:1b, jarvis:3b, jarvis-tool
-TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
+TOOLS_ENABLED = MODEL_NAME == "jarvis-3b"
 
 # Conversation memory settings
 conversation_history = []

@@ -13,8 +13,15 @@ import nemo.collections.asr as nemo_asr
 logger = logging.getLogger(__name__)
 
 logging.getLogger("nemo").setLevel(logging.ERROR)
+logging.getLogger("nemo_logger").setLevel(logging.ERROR)
+logging.getLogger("nemo_logging").setLevel(logging.ERROR)
 logging.getLogger("lightning").setLevel(logging.ERROR)
 logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+
+nemo_logger = logging.getLogger("nemo_logging")
+nemo_logger.handlers.clear()  # remove handlers NeMo attaches
+nemo_logger.propagate = False  # stop bubbling to root
+nemo_logger.disabled = True  # completely disable it
 
 SAMPLE_RATE = 16000
 CHUNK_DURATION = 0.1  # seconds, for silence detection
