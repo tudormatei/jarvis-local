@@ -9,7 +9,7 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 logger = logging.getLogger(__name__)
 
 # Initialize Ollama model
-MODEL_NAME = "jarvis-tool"  # jarvis:1b, jarvis:3b, jarvis-tool
+MODEL_NAME = "jarvis:3b"  # jarvis:1b, jarvis:3b, jarvis-tool
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 # Conversation memory settings
@@ -21,7 +21,7 @@ MAX_INTERACTIONS = 3
 tool_registry = {
     "get_user_info": get_user_info,
     "get_weather_report": get_weather_report,
-    "play_song": play_song
+    "play_song": play_song,
 }
 
 
@@ -36,14 +36,11 @@ def detect_and_handle_tool_call(response_text):
 
     try:
         fake_call = f"f({params_str})"
-        parsed = ast.parse(fake_call, mode='eval')
+        parsed = ast.parse(fake_call, mode="eval")
         if not isinstance(parsed.body, ast.Call):
             raise ValueError("Not a valid function call")
 
-        param_dict = {
-            kw.arg: ast.literal_eval(kw.value)
-            for kw in parsed.body.keywords
-        }
+        param_dict = {kw.arg: ast.literal_eval(kw.value) for kw in parsed.body.keywords}
 
     except Exception as e:
         logger.info("LLM Failed parsing tool parameters.")
@@ -65,8 +62,7 @@ def detect_and_handle_tool_call(response_text):
 def update_conversation_history(user_input, assistant_response):
     # Append user input and assistant response to the conversation history
     conversation_history.append({"role": "user", "content": user_input})
-    conversation_history.append(
-        {"role": "assistant", "content": assistant_response})
+    conversation_history.append({"role": "assistant", "content": assistant_response})
 
     # Keep only the last N interactions (where each interaction is a user-assistant pair)
     while len(conversation_history) > MAX_INTERACTIONS * 2:
@@ -83,7 +79,7 @@ def handle_sentence_endings(full_response):
 
     if match:
         sentence = match.group(1).strip()
-        remaining_text = full_response[len(match.group(0)):].strip()
+        remaining_text = full_response[len(match.group(0)) :].strip()
     else:
         sentence = None
         remaining_text = full_response.strip()
@@ -98,8 +94,7 @@ async def chat_with_jarvis(input_text):
 
     try:
         logger.info("LLM Started inference.")
-        response_stream = ollama.chat(
-            MODEL_NAME, messages=messages, stream=True)
+        response_stream = ollama.chat(MODEL_NAME, messages=messages, stream=True)
 
         first_chunk = False
         first_sentence = False
@@ -111,8 +106,7 @@ async def chat_with_jarvis(input_text):
             full_response += part["message"]["content"]
             current_characters += part["message"]["content"]
 
-            sentence, current_characters = handle_sentence_endings(
-                current_characters)
+            sentence, current_characters = handle_sentence_endings(current_characters)
             if sentence:
                 if not first_sentence:
                     logger.info("LLM First sentence sent.")
@@ -142,7 +136,9 @@ async def main():
 
         async for sentence in chat_with_jarvis(user_input):
             print(
-                f"JARVIS: {sentence}",)
+                f"JARVIS: {sentence}",
+            )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

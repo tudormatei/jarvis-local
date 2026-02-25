@@ -4,6 +4,12 @@
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
+## TODO:
+- Update TTS model to a quicker and better sounding one Qwuen3b maybe?
+- Update LLM to faster + tool calling? still keep 3b params prob
+- Upgrade STT to Parakeet TDT
+- Make sure logging says the exact time it takes for each process
+
 ## Features
 
 - **Local LLM (Ollama/3B):** Fast, streaming responses with conversation memory.
