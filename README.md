@@ -10,9 +10,9 @@
 
 ## Features
 
-- **Local LLM (Ollama/3B):** Fast, streaming responses with conversation memory.
-- **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using XTTS.
-- **Speech-to-Text (STT):** Accurate, real-time transcription with Whisper.
+- **Local LLM (Llama/1B):** Fast, streaming responses with conversation memory using Ollama.
+- **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using XTTSv2.
+- **Speech-to-Text (STT):** Accurate, real-time transcription with NVIDIA Parakeet.
 - **Push-to-Talk:** Optional mode for precise voice input control.
 - **Text Mode:** CLI-based chat for keyboard-only interaction.
 - **Configurable Logging:** Adjustable verbosity for debugging or silent operation.
@@ -32,22 +32,19 @@ Microphone capture duration is excluded since the user is actively talking durin
 
 **LLM Inference**
 
-- Time to first token: **~395 ms**
-- Full streaming duration: **~1.8 s**
+- Time to first speakable token (sentence): **~395 ms**
 
-**Text-to-Speech (first audio output)**
+**Text-to-Speech**
 
-- First chunk received: ~5 ms
-- TTS inference (first segment): ~873 ms
-- Playback buffer: ~49 ms
+- TTS inference (time to first audio output): **~873 ms**
 
 ### Time to First Audible Response
 
 From end-of-speech → first spoken word:
 
-- STT transcription: ~0.62 s
+- STT transcription: ~0.6 s
 - LLM first token: ~0.40 s
-- TTS first audio generation: ~0.92 s
+- TTS first audio generation: ~0.9 s
 
 **Total latency: ~1.9 – 2.0 seconds**
 
@@ -115,9 +112,9 @@ conda activate jarvis-local
 
 ### 3. Download models
 
-- **LLM:** Uses Ollama (`ollama run jarvis:3b`) or your configured local model.
+- **LLM** Uses Ollama to download and run models locally. You can download your own model from the archive, add personality to it using a Modelfile and replace `MODEL_NAME = "jarvis:1b"` inside `jarvis_llm/jarvis_llm.py` with the selected model
 - **TTS:** The finetuned model is already included in the repository.
-- **STT:** Whisper model is auto-downloaded on first run.
+- **STT:** NVIDIA Parakeet model is auto-downloaded on first run.
 
 ---
 
@@ -186,7 +183,7 @@ This project is for personal, non-commercial use. See individual model licenses 
 
 - [Ollama](https://ollama.com/) for local LLM serving
 - [Coqui TTS](https://github.com/coqui-ai/TTS) for XTTS + finetuning
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) for fast STT
+- [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) for fast STT
 - Open source community for tools and inspiration
 
 ---
