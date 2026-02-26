@@ -90,7 +90,7 @@ TOOL_TESTS = [
 async def warmup_model(model):
     print(f"Warming up {model}...")
     await run_single_prompt(model, "Hello.")
-    await asyncio.sleep(0.5)  # allow GPU settle
+    await asyncio.sleep(0.5)
 
 
 def extract_tool_call(text):
@@ -207,7 +207,7 @@ async def benchmark_model(model: str):
     qa_score = await run_qa_tests(model)
     instr_score = await run_instruction_tests(model)
     struct_score = await run_structured_tests(model)
-    # tool_score = await run_tool_tests(model)
+    tool_score = await run_tool_tests(model)
 
     return {
         "model": model,
@@ -217,7 +217,7 @@ async def benchmark_model(model: str):
         "qa_accuracy": qa_score,
         "instruction_accuracy": instr_score,
         "structured_accuracy": struct_score,
-        # "tool_accuracy": tool_score,
+        "tool_accuracy": tool_score,
     }
 
 
@@ -228,7 +228,6 @@ async def main():
         result = await benchmark_model(model)
         results.append(result)
 
-    # Print results nicely
     print("\n" + "=" * 80)
     print("FINAL BENCHMARK RESULTS")
     print("=" * 80)
@@ -244,7 +243,7 @@ async def main():
         f"{'QA %':>8}"
         f"{'Instr %':>10}"
         f"{'Struct %':>10}"
-        # f"{'Tool %':>8}"
+        f"{'Tool %':>8}"
     )
 
     print(header)
@@ -260,15 +259,14 @@ async def main():
             f"{r['qa_accuracy'] * 100:>8.0f}"
             f"{r['instruction_accuracy'] * 100:>10.0f}"
             f"{r['structured_accuracy'] * 100:>10.0f}"
-            # f"{r['tool_accuracy'] * 100:>8.0f}"
+            f"{r['tool_accuracy'] * 100:>8.0f}"
         )
 
     print("=" * 80)
 
-    # Highlight winner
     winner = sorted_results[0]
     print(
-        f"\n🏆 Fastest Model: {winner['model']} "
+        f"\nFastest Model: {winner['model']} "
         f"(TTFT: {winner['avg_ttft']*1000:.0f} ms)"
     )
 

@@ -53,7 +53,6 @@ def main():
     print("audio:", audio_path)
     print("audio seconds:", f"{dur_s:.2f}")
 
-    # Load model
     model = WhisperModel(
         args.model,
         device=args.device,

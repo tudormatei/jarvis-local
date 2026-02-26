@@ -8,11 +8,9 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
-# Initialize Ollama model
 MODEL_NAME = "jarvis:1b"  # jarvis:1b, jarvis:3b, jarvis-tool
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
-# Conversation memory settings
 conversation_history = []
 MAX_INTERACTIONS = 3
 

@@ -19,7 +19,9 @@ def main():
     ap.add_argument("--runs", type=int, default=5)
     ap.add_argument("--warmup", type=int, default=1)
     ap.add_argument("--timestamps", action="store_true")
-    ap.add_argument("--amp", action="store_true", help="Use autocast FP16/BF16 on GPU if supported")
+    ap.add_argument(
+        "--amp", action="store_true", help="Use autocast FP16/BF16 on GPU if supported"
+    )
     args = ap.parse_args()
 
     audio_path = str(Path(args.audio).expanduser().resolve())
@@ -34,12 +36,12 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load model from NVIDIA / HF via NeMo
-    asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name="nvidia/parakeet-tdt-0.6b-v2")
+    asr_model = nemo_asr.models.ASRModel.from_pretrained(
+        model_name="nvidia/parakeet-tdt-0.6b-v2"
+    )
     asr_model.eval()
     asr_model.to(device)
 
-    # Some optional speed knobs (safe/no-op if unsupported)
     if device.type == "cuda":
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.set_float32_matmul_precision("high")
@@ -50,7 +52,6 @@ def main():
         t0 = time.perf_counter()
 
         if args.amp and device.type == "cuda":
-            # Autocast helps on many GPUs; if it hurts, just disable --amp.
             with torch.autocast(device_type="cuda", dtype=torch.float16):
                 out = asr_model.transcribe([audio_path], timestamps=args.timestamps)
         else:
@@ -60,7 +61,6 @@ def main():
             torch.cuda.synchronize()
         t1 = time.perf_counter()
 
-        # NeMo returns a list; first item contains the text (and timestamps if enabled)
         text = out[0].text if hasattr(out[0], "text") else str(out[0])
         return (t1 - t0), text, out
 
@@ -80,7 +80,9 @@ def main():
         last_out = out
         rtf = dt / dur_s
         rtfx = dur_s / dt
-        print(f"run {i+1}: {dt:.4f}s | audio {dur_s:.2f}s | RTF {rtf:.4f} | RTFx {rtfx:.1f}")
+        print(
+            f"run {i+1}: {dt:.4f}s | audio {dur_s:.2f}s | RTF {rtf:.4f} | RTFx {rtfx:.1f}"
+        )
 
     times_sorted = sorted(times)
     median = times_sorted[len(times_sorted) // 2]
@@ -96,7 +98,6 @@ def main():
     print(last_text)
 
     if args.timestamps:
-        # by default NeMo enables char/word/segment timestamps when timestamps=True
         ts = getattr(last_out[0], "timestamp", None)
         if ts and "segment" in ts:
             print("\n== Segment timestamps ==")

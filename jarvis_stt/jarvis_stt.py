@@ -118,19 +118,13 @@ torch.set_num_interop_threads(1)
 
 
 def _write_temp_wav(audio_f32: np.ndarray, sample_rate: int = SAMPLE_RATE) -> str:
-    """
-    Write float32 mono audio to a temporary WAV file and return its path.
-    NeMo's transcribe() API takes file paths.
-    """
-    # Ensure 1D float32
     audio_f32 = np.asarray(audio_f32, dtype=np.float32).flatten()
 
-    # Avoid empty writes
     if audio_f32.size == 0:
         return ""
 
     fd, path = tempfile.mkstemp(suffix=".wav", prefix="jarvis_stt_", text=False)
-    os.close(fd)  # soundfile will open it
+    os.close(fd)
     sf.write(path, audio_f32, sample_rate, subtype="PCM_16")
     return path
 
@@ -212,16 +206,11 @@ def transcribe_user_audio(push_to_talk: bool) -> str:
     if audio.size == 0:
         return ""
 
-    # Optional: apply your VAD choice by controlling capture logic.
-    # Parakeet here is run on the captured audio without extra VAD filtering.
     logger.info("SST Started transcribing.")
 
     tmp_path = _write_temp_wav(audio, SAMPLE_RATE)
     try:
-        # NeMo transcribe returns a list of hypotheses; each has .text
-        # with suppress_fds():
         out = asr_model.transcribe([tmp_path], timestamps=False, verbose=False)
-        # Depending on NeMo version, out[0] may be a Hypothesis with .text
         text = out[0].text if hasattr(out[0], "text") else str(out[0])
     finally:
         if tmp_path and os.path.exists(tmp_path):
@@ -270,7 +259,6 @@ if __name__ == "__main__":
 
             tmp_path = _write_temp_wav(audio, SAMPLE_RATE)
             try:
-                # with suppress_fds():
                 out = asr_model.transcribe([tmp_path], timestamps=False, verbose=False)
                 text = out[0].text if hasattr(out[0], "text") else str(out[0])
             finally:
