@@ -8,7 +8,6 @@ dependencies:
   - openssl=3.0.16=h3f729d1_0
   - pip=25.0=py311haa95532_0
   - python=3.11.11=h4607a30_0
-  - setuptools=75.8.0=py311haa95532_0
   - sqlite=3.45.3=h2bbff1b_0
   - tk=8.6.14=h0416ee5_0
   - vc=14.42=haa95532_4
@@ -18,49 +17,70 @@ dependencies:
   - zlib=1.2.13=h8cc25b3_1
   - pip:
       - absl-py==2.2.1
+      - accelerate==1.12.0
       - aiohappyeyeballs==2.6.1
       - aiohttp==3.11.14
       - aiosignal==1.3.2
+      - alembic==1.18.4
+      - annotated-doc==0.0.4
       - annotated-types==0.7.0
+      - antlr4-python3-runtime==4.9.3
       - anyascii==0.3.2
       - anyio==4.9.0
-      - attrs==25.3.0
+      - asttokens==3.0.1
+      - attrs==25.4.0
       - audioread==3.0.1
       - av==14.2.0
       - babel==2.17.0
       - blis==0.7.11
       - bottle==0.13.3
+      - braceexpand==0.1.7
       - catalogue==2.0.10
-      - certifi==2025.1.31
-      - cffi==1.17.1
+      - certifi==2026.2.25
+      - cffi==2.0.0
       - charset-normalizer==3.4.1
-      - click==8.1.8
+      - click==8.3.1
       - cloudpathlib==0.21.0
+      - cloudpickle==3.1.2
       - clr-loader==0.2.7.post0
       - colorama==0.4.6
       - coloredlogs==15.0.1
+      - colorlog==6.10.1
       - confection==0.1.5
       - contourpy==1.3.1
-      - coqpit-config==0.2.0
+      - coqpit-config==0.2.4
       - coqui-tts==0.26.0
       - coqui-tts-trainer==0.2.3
       - ctranslate2==4.5.0
+      - cuda-bindings==13.1.1
+      - cuda-pathfinder==1.4.0
       - cycler==0.12.1
       - cymem==2.0.11
       - cython==3.0.12
+      - cytoolz==1.1.0
+      - datasets==4.6.0
       - dateparser==1.1.8
       - decorator==5.2.1
       - deepspeed==0.16.5
+      - dill==0.4.0
       - diskcache==5.6.3
       - docopt==0.6.2
+      - editdistance==0.8.1
       - einops==0.8.1
       - encodec==0.1.1
+      - exceptiongroup==1.3.1
+      - executing==2.2.1
       - faster-whisper==1.1.1
+      - fiddle==0.3.0
       - filelock==3.13.1
       - flatbuffers==25.2.10
       - fonttools==4.56.0
       - frozenlist==1.5.0
-      - fsspec==2024.6.1
+      - fsspec==2024.12.0
+      - gitdb==4.0.12
+      - gitpython==3.1.46
+      - graphviz==0.21
+      - greenlet==3.3.2
       - grpcio==1.71.0
       - gruut==2.4.0
       - gruut-ipa==0.13.0
@@ -69,108 +89,189 @@ dependencies:
       - gruut-lang-es==2.0.1
       - gruut-lang-fr==2.0.2
       - h11==0.14.0
+      - hf-xet==1.3.1
       - hjson==3.1.0
       - httpcore==1.0.7
       - httpx==0.28.1
-      - huggingface-hub==0.30.1
+      - huggingface-hub==0.36.2
       - humanfriendly==10.0
-      - idna==3.10
+      - hydra-core==1.3.2
+      - idna==3.11
+      - indic-numtowords==1.1.0
       - inflect==7.5.0
+      - intervaltree==3.2.1
+      - ipython==9.10.0
+      - ipython-pygments-lexers==1.1.1
+      - jedi==0.19.2
       - jinja2==3.1.6
+      - jiwer==3.1.0
       - joblib==1.4.2
       - jsonlines==1.2.0
+      - kaldi-python-io==1.2.2
+      - kaldialign==0.9.1
       - keyboard==0.13.5
       - kiwisolver==1.4.8
+      - ko-speech-tools==0.1.0
       - langcodes==3.5.0
       - language-data==1.3.0
       - lazy-loader==0.4
+      - lhotse==1.32.2
+      - libcst==1.8.6
       - librosa==0.11.0
-      - llvmlite==0.44.0
+      - lightning==2.4.0
+      - lightning-utilities==0.15.3
+      - lilcom==1.8.2
+      - llvmlite==0.46.0
+      - lxml==6.0.2
+      - mako==1.3.10
       - marisa-trie==1.2.1
       - markdown==3.7
       - markdown-it-py==3.0.0
       - markupsafe==3.0.2
+      - marshmallow==4.2.2
       - matplotlib==3.10.1
+      - matplotlib-inline==0.2.1
       - mdurl==0.1.2
+      - mediapy==1.1.6
+      - ml-dtypes==0.5.4
       - monotonic-alignment-search==0.1.1
       - more-itertools==10.6.0
       - mpmath==1.3.0
       - msgpack==1.1.0
       - multidict==6.2.0
+      - multiprocess==0.70.18
       - murmurhash==1.0.12
+      - nemo-toolkit==2.7.0
       - networkx==3.3
       - ninja==1.11.1.4
       - num2words==0.5.14
-      - numba==0.61.0
+      - numba==0.64.0
+      - numba-cuda==0.15.1
+      - numexpr==2.13.1
       - numpy==1.26.4
+      - nv-one-logger-core==2.3.1
+      - nv-one-logger-pytorch-lightning-integration==2.3.1
+      - nv-one-logger-training-telemetry==2.3.1
       - nvidia-ml-py==12.570.86
       - ollama==0.4.7
+      - omegaconf==2.3.0
+      - onnx==1.20.1
       - onnxruntime==1.21.0
+      - optuna==4.7.0
+      - outcome==1.3.0.post0
+      - overrides==7.7.0
       - packaging==24.2
+      - pandas==3.0.1
+      - parso==0.8.6
+      - peft==0.18.1
       - pillow==11.0.0
       - platformdirs==4.3.7
       - pooch==1.8.2
+      - portalocker==3.2.0
       - preshed==3.0.9
+      - prompt-toolkit==3.0.52
       - propcache==0.3.1
-      - protobuf==6.30.2
+      - protobuf==5.29.6
       - proxy-tools==0.1.0
       - psutil==7.0.0
+      - pure-eval==0.2.3
       - py-cpuinfo==9.0.0
-      - pycparser==2.22
+      - pyannote-core==5.0.0
+      - pyannote-database==5.1.3
+      - pyannote-metrics==3.2.1
+      - pyarrow==23.0.1
+      - pycparser==3.0
       - pydantic==2.11.1
       - pydantic-core==2.33.0
+      - pydub==0.25.1
       - pygments==2.19.1
+      - pyloudnorm==0.2.0
       - pyparsing==3.2.3
       - pyreadline3==3.5.4
       - pysbd==0.3.4
+      - pysocks==1.7.1
       - python-crfsuite==0.9.11
       - python-dateutil==2.9.0.post0
       - pythonnet==3.0.5
+      - pytorch-lightning==2.6.1
       - pytz==2025.2
       - pywebview==5.4
+      - pywin32==311
       - pyyaml==6.0.2
+      - rapidfuzz==3.14.3
       - regex==2024.11.6
       - requests==2.32.3
+      - resampy==0.4.3
       - rich==14.0.0
+      - ruamel-yaml==0.19.1
+      - sacrebleu==2.6.0
+      - sacremoses==0.1.1
       - safetensors==0.5.3
       - scikit-learn==1.6.1
       - scipy==1.15.2
+      - selenium==4.16.0
+      - sentencepiece==0.2.1
+      - sentry-sdk==2.53.0
+      - setuptools==82.0.0
       - shellingham==1.5.4
       - six==1.17.0
       - smart-open==7.1.0
+      - smmap==5.0.2
       - sniffio==1.3.1
+      - sortedcontainers==2.4.0
       - sounddevice==0.5.1
       - soundfile==0.13.1
+      - sox==1.5.0
       - soxr==0.5.0.post1
       - spacy==3.7.5
       - spacy-legacy==3.0.12
       - spacy-loggers==1.0.5
+      - sqlalchemy==2.0.47
       - srsly==2.5.1
+      - stack-data==0.6.3
+      - strenum==0.4.15
       - sudachidict-core==20250129
       - sudachipy==0.6.10
       - sympy==1.13.1
+      - tabulate==0.9.0
       - tensorboard==2.19.0
       - tensorboard-data-server==0.7.2
+      - text-unidecode==1.3
       - thinc==8.2.5
       - threadpoolctl==3.6.0
       - tiktoken==0.9.0
-      - tokenizers==0.21.1
+      - tokenizers==0.21.4
+      - toml==0.10.2
+      - toolz==1.1.0
       - torch==2.6.0+cu124
       - torchaudio==2.6.0+cu124
+      - torchmetrics==1.8.2
       - torchvision==0.21.0+cu124
       - tqdm==4.67.1
+      - traitlets==5.14.3
       - transformers==4.50.3
+      - trio==0.22.2
+      - trio-websocket==0.10.4
       - typeguard==4.4.2
-      - typer==0.15.2
-      - typing-extensions==4.13.0
+      - typer==0.24.1
+      - typer-slim==0.24.0
+      - typing-extensions==4.15.0
       - typing-inspection==0.4.0
       - tzdata==2025.2
       - tzlocal==5.3.1
-      - urllib3==2.3.0
+      - urllib3==2.6.3
+      - wandb==0.25.0
       - wasabi==1.1.3
+      - wcwidth==0.6.0
       - weasel==0.4.1
+      - webdataset==1.0.2
+      - websocket-client==1.9.0
       - websockets==15.0.1
       - werkzeug==3.1.3
+      - wget==3.2
+      - whisper-normalizer==0.1.12
       - wrapt==1.17.2
+      - wsproto==1.2.0
+      - xxhash==3.6.0
       - yarl==1.18.3
 prefix: C:\Users\tudor\miniconda3\envs\jarvis-local

@@ -8,7 +8,117 @@ import os
 import soundfile as sf
 
 import torch
+
+# ---- MUST BE BEFORE importing jarvis_stt / nemo ----
+import logging
+
+
+class _DropLhotseSpam(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        if "Initializing Lhotse CutSet from a single NeMo manifest" in msg:
+            return False
+        if "The following configuration keys are ignored by Lhotse dataloader" in msg:
+            return False
+        if (
+            "You are using a non-tarred dataset and requested tokenization during data sampling"
+            in msg
+        ):
+            return False
+        return True
+
+
+def silence_nemo_and_lhotse():
+    # Keep your app logs working; just shut up the noisy libs.
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    spam_filter = _DropLhotseSpam()
+    root.addFilter(spam_filter)
+    for h in root.handlers:
+        h.addFilter(spam_filter)
+
+    # NeMo + friends
+    for name in [
+        "nemo",
+        "nemo_logger",
+        "nemo_logging",
+        "nemo.utils",
+        "lightning",
+        "pytorch_lightning",
+        "lhotse",
+        "nemo.collections.common.data.lhotse",
+        "nemo.collections.common.data.lhotse.dataloader",
+        "nemo.collections.asr.data.audio_to_text_lhotse",
+        "config",
+        "export_config_manager",
+        "one_logger",
+        "nv_one_logger",
+    ]:
+        lg = logging.getLogger(name)
+        lg.setLevel(logging.ERROR)
+        lg.propagate = False
+        lg.addFilter(spam_filter)
+        for hh in list(lg.handlers):
+            lg.removeHandler(hh)
+
+    # NeMo internal verbosity helper (best-effort across versions)
+    try:
+        from nemo.utils import logging as nemo_logging
+
+        nemo_logging.set_verbosity(logging.ERROR)
+        _nlogger = getattr(nemo_logging, "_logger", None)
+        if _nlogger:
+            _nlogger.setLevel(logging.ERROR)
+            _nlogger.propagate = False
+            _nlogger.addFilter(spam_filter)
+            for hh in list(_nlogger.handlers):
+                _nlogger.removeHandler(hh)
+    except Exception:
+        pass
+
+
+silence_nemo_and_lhotse()
+
 import nemo.collections.asr as nemo_asr
+
+# try:
+#     from nemo.utils import logging as nemo_logging
+
+#     nemo_logging.set_verbosity(logging.ERROR)
+
+#     # extra hard-kill (some versions ignore set_verbosity for W)
+#     _nlogger = getattr(nemo_logging, "_logger", None)
+#     if _nlogger:
+#         _nlogger.setLevel(logging.ERROR)
+#         _nlogger.propagate = False
+#         for h in list(_nlogger.handlers):
+#             _nlogger.removeHandler(h)
+# except Exception:
+#     pass
+
+
+# import os
+# from contextlib import contextmanager
+
+
+# @contextmanager
+# def suppress_fds():
+#     # Redirect OS-level stdout/stderr (works even for native prints)
+#     devnull_fd = os.open(os.devnull, os.O_WRONLY)
+#     saved_stdout_fd = os.dup(1)
+#     saved_stderr_fd = os.dup(2)
+#     try:
+#         os.dup2(devnull_fd, 1)  # stdout
+#         os.dup2(devnull_fd, 2)  # stderr
+#         yield
+#     finally:
+#         os.dup2(saved_stdout_fd, 1)
+#         os.dup2(saved_stderr_fd, 2)
+#         os.close(saved_stdout_fd)
+#         os.close(saved_stderr_fd)
+#         os.close(devnull_fd)
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +145,20 @@ PUSH_TO_TALK_KEY = "space"
 
 MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
 
-_device = "cuda" if torch.cuda.is_available() else "cpu"
-asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
+# _device = "cuda" if torch.cuda.is_available() else "cpu"
+# asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
+# asr_model.eval()
+# asr_model.to(_device)
+
+# Force NeMo ASR to CPU to avoid fighting XTTS for the GPU
+_device = "cpu"
+asr_model = nemo_asr.models.ASRModel.from_pretrained(
+    model_name=MODEL_NAME, map_location="cpu"
+)
 asr_model.eval()
-asr_model.to(_device)
+asr_model.to("cpu")
+torch.set_num_threads(4)
+torch.set_num_interop_threads(1)
 
 
 def _write_temp_wav(audio_f32: np.ndarray, sample_rate: int = SAMPLE_RATE) -> str:
@@ -60,6 +180,7 @@ def _write_temp_wav(audio_f32: np.ndarray, sample_rate: int = SAMPLE_RATE) -> st
 
 
 def record_push_to_talk():
+    logger.info("SST can start PUSH-TO-TALK.")
     print(f"Hold '{PUSH_TO_TALK_KEY}' and start talking...")
     buffer = []
     recording = [False]  # mutable
@@ -142,7 +263,8 @@ def transcribe_user_audio(push_to_talk: bool) -> str:
     tmp_path = _write_temp_wav(audio, SAMPLE_RATE)
     try:
         # NeMo transcribe returns a list of hypotheses; each has .text
-        out = asr_model.transcribe([tmp_path], timestamps=False)
+        # with suppress_fds():
+        out = asr_model.transcribe([tmp_path], timestamps=False, verbose=False)
         # Depending on NeMo version, out[0] may be a Hypothesis with .text
         text = out[0].text if hasattr(out[0], "text") else str(out[0])
     finally:
@@ -162,13 +284,17 @@ if __name__ == "__main__":
         )
         while True:
             if push_to_talk:
+                record_start = time.time()
                 audio = record_push_to_talk()
+                record_end = time.time()
             else:
+                record_start = time.time()
                 print(
                     time.strftime("%H-%M-%S-", time.localtime())
                     + f"{int((time.time() % 1) * 1000):03d}: SST Started capturing audio."
                 )
                 audio = record_until_silence()
+                record_end = time.time()
                 print(
                     time.strftime("%H-%M-%S-", time.localtime())
                     + f"{int((time.time() % 1) * 1000):03d}: SST Finished capturing audio."
@@ -177,22 +303,34 @@ if __name__ == "__main__":
             if audio.size == 0:
                 continue
 
+            record_duration_ms = (record_end - record_start) * 1000
+            print(f"Total recording time: {record_duration_ms:.3f} ms")
+
+            transcribe_start = time.time()
             print(
                 time.strftime("%H-%M-%S-", time.localtime())
                 + f"{int((time.time() % 1) * 1000):03d}: SST Started transcribing."
             )
+
             tmp_path = _write_temp_wav(audio, SAMPLE_RATE)
             try:
-                out = asr_model.transcribe([tmp_path], timestamps=False)
+                # with suppress_fds():
+                out = asr_model.transcribe([tmp_path], timestamps=False, verbose=False)
                 text = out[0].text if hasattr(out[0], "text") else str(out[0])
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
 
+            transcribe_end = time.time()
+
             print(
                 time.strftime("%H-%M-%S-", time.localtime())
                 + f"{int((time.time() % 1) * 1000):03d}: SST Finished transcribing."
             )
+
+            transcribe_duration_ms = (transcribe_end - transcribe_start) * 1000
+            print(f"Total transcription time: {transcribe_duration_ms:.3f} ms")
+
             print(text.strip())
 
     except KeyboardInterrupt:

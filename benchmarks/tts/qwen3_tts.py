@@ -107,8 +107,7 @@ def main():
         print("Enabling streaming optimizations...")
         model.enable_streaming_optimizations(
             decode_window_frames=args.decode_window_frames,
-            use_compile=True,
-            compile_mode="reduce-overhead",
+            use_compile=False,
         )
     else:
         print(

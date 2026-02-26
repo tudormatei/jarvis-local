@@ -5,10 +5,9 @@
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
 ## TODO:
-- Update TTS model to a quicker and better sounding one Qwuen3b maybe?
-- Update LLM to faster + tool calling? still keep 3b params prob
-- Upgrade STT to Parakeet TDT
-- Make sure logging says the exact time it takes for each process
+
+- Update TTS model to a quicker and better sounding one Qwen3 tts, f5 tts, maybe?
+- MAKE UI SOUND WAVE PERFECT
 
 ## Features
 
@@ -20,6 +19,50 @@
 - **Configurable Logging:** Adjustable verbosity for debugging or silent operation.
 - **Cross-platform:** Designed for Windows, but adaptable to Linux/Mac.
 - **UI or CLI:** Choose between a graphical interface or command-line.
+
+## Pipeline Latency
+
+This evaluation measures system latency **after the user finishes speaking**.  
+Microphone capture duration is excluded since the user is actively talking during that time.
+
+---
+
+### Measured Stages
+
+**Speech-to-Text (transcription only)**
+
+- Transcription time: **~617 ms**
+
+**LLM Inference**
+
+- Time to first token: **~395 ms**
+- Full streaming duration: **~1.8 s**
+
+**Text-to-Speech (first audio output)**
+
+- First chunk received: ~5 ms
+- TTS inference (first segment): ~873 ms
+- Playback buffer: ~49 ms
+
+### Time to First Audible Response
+
+From end-of-speech → first spoken word:
+
+- STT transcription: ~0.62 s
+- LLM first token: ~0.40 s
+- TTS first audio generation: ~0.92 s
+
+**Total latency: ~1.9 – 2.0 seconds**
+
+### Why It Feels Fast
+
+The system streams intelligently:
+
+- LLM streams tokens progressively
+- TTS begins before LLM finishes
+- Playback starts before full response is generated
+
+Because of this overlap, JARVIS begins speaking in ~2 seconds while the rest of the response is still processing.
 
 ## Project Structure
 
