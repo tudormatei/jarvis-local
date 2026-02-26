@@ -6,10 +6,7 @@ import logging
 import tempfile
 import os
 import soundfile as sf
-
 import torch
-
-# ---- MUST BE BEFORE importing jarvis_stt / nemo ----
 import logging
 
 
@@ -29,7 +26,6 @@ class _DropLhotseSpam(logging.Filter):
 
 
 def silence_nemo_and_lhotse():
-    # Keep your app logs working; just shut up the noisy libs.
     root = logging.getLogger()
     root.setLevel(logging.INFO)
 
@@ -38,7 +34,6 @@ def silence_nemo_and_lhotse():
     for h in root.handlers:
         h.addFilter(spam_filter)
 
-    # NeMo + friends
     for name in [
         "nemo",
         "nemo_logger",
@@ -62,7 +57,6 @@ def silence_nemo_and_lhotse():
         for hh in list(lg.handlers):
             lg.removeHandler(hh)
 
-    # NeMo internal verbosity helper (best-effort across versions)
     try:
         from nemo.utils import logging as nemo_logging
 
@@ -81,44 +75,6 @@ def silence_nemo_and_lhotse():
 silence_nemo_and_lhotse()
 
 import nemo.collections.asr as nemo_asr
-
-# try:
-#     from nemo.utils import logging as nemo_logging
-
-#     nemo_logging.set_verbosity(logging.ERROR)
-
-#     # extra hard-kill (some versions ignore set_verbosity for W)
-#     _nlogger = getattr(nemo_logging, "_logger", None)
-#     if _nlogger:
-#         _nlogger.setLevel(logging.ERROR)
-#         _nlogger.propagate = False
-#         for h in list(_nlogger.handlers):
-#             _nlogger.removeHandler(h)
-# except Exception:
-#     pass
-
-
-# import os
-# from contextlib import contextmanager
-
-
-# @contextmanager
-# def suppress_fds():
-#     # Redirect OS-level stdout/stderr (works even for native prints)
-#     devnull_fd = os.open(os.devnull, os.O_WRONLY)
-#     saved_stdout_fd = os.dup(1)
-#     saved_stderr_fd = os.dup(2)
-#     try:
-#         os.dup2(devnull_fd, 1)  # stdout
-#         os.dup2(devnull_fd, 2)  # stderr
-#         yield
-#     finally:
-#         os.dup2(saved_stdout_fd, 1)
-#         os.dup2(saved_stderr_fd, 2)
-#         os.close(saved_stdout_fd)
-#         os.close(saved_stderr_fd)
-#         os.close(devnull_fd)
-
 
 logger = logging.getLogger(__name__)
 

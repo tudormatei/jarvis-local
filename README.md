@@ -7,7 +7,6 @@
 ## TODO:
 
 - Update TTS model to a quicker and better sounding one Qwen3 tts, f5 tts, maybe?
-- MAKE UI SOUND WAVE PERFECT
 
 ## Features
 
@@ -24,8 +23,6 @@
 
 This evaluation measures system latency **after the user finishes speaking**.  
 Microphone capture duration is excluded since the user is actively talking during that time.
-
----
 
 ### Measured Stages
 
@@ -85,24 +82,62 @@ jarvis-local/
 
 ## Installation
 
-1. **Clone the repository:**
+### Prerequisites
 
-   ```sh
-   git clone https://github.com/yourusername/jarvis-local.git
-   cd jarvis-local
-   ```
+| Requirement | Version                           |
+| ----------- | --------------------------------- |
+| OS          | Windows (tested on Windows 10/11) |
+| Python      | 3.11.11                           |
+| CUDA Driver | 12.4+                             |
+| Miniconda   | Latest                            |
 
-2. **Install dependencies:**  
-   (Recommended: use conda or miniconda)
+---
 
-   ```sh
-   conda env create -f environment.yml
-   ```
+### 1. Clone the repository
 
-3. **Download models:**
-   - **LLM:** Uses Ollama (`ollama run jarvis:3b`) or your configured local model.
-   - **TTS:** The finetuned model is already included in the repository.
-   - **STT:** Whisper model is auto-downloaded on first run.
+```sh
+git clone https://github.com/yourusername/jarvis-local.git
+cd jarvis-local
+```
+
+### 2. Recreate the conda environment
+
+```sh
+conda env create -f environment-lock.yml
+conda activate jarvis-local
+```
+
+> If you run into issues with PyTorch not finding CUDA, reinstall it manually:
+>
+> ```sh
+> pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+> ```
+
+### 3. Download models
+
+- **LLM:** Uses Ollama (`ollama run jarvis:3b`) or your configured local model.
+- **TTS:** The finetuned model is already included in the repository.
+- **STT:** Whisper model is auto-downloaded on first run.
+
+---
+
+### Updating the lockfiles (maintainers only)
+
+After installing or changing any dependencies, regenerate and commit the lockfiles:
+
+```sh
+# Full conda export (includes pip packages, Python version, and conda base packages)
+conda env export > environment-lock.yml
+
+# Pure pip lockfile (backup, useful if conda env create fails)
+pip freeze > requirements-lock.txt
+
+git add environment-lock.yml requirements-lock.txt
+git commit -m "chore: update environment lockfiles"
+```
+
+> **Note:** `environment-lock.yml` is the source of truth. `requirements-lock.txt` is a fallback.  
+> Do not manually edit either file — always regenerate them from the live environment.
 
 ## Usage
 
