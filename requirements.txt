@@ -1,6 +1,8 @@
 pocket-tts
-sounddevice 
+sounddevice
 scipy
 huggingface_hub
-torch==2.6.0
-torchaudio==2.6.0
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchaudio==2.6.0+cu124
+nemo_toolkit[asr]

@@ -1,12 +1,11 @@
 import logging
-import os
-import tempfile
 from dataclasses import dataclass
 import keyboard
 import numpy as np
 import sounddevice as sd
-import soundfile as sf
 import torch
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 class JarvisSTTConfig:
     # Audio
     sample_rate: int = 16000
-    chunk_duration: float = 0.1  # seconds (silence detection chunk size)
+    chunk_duration: float = 0.05  # seconds (silence detection chunk size)
     buffer_duration: float = 3.0  # max seconds to record per utterance (silence mode)
     silence_threshold: float = 0.01  # amplitude threshold for silence
     min_silence_duration: float = (
@@ -34,7 +33,7 @@ class JarvisSTT:
         self,
         *,
         sample_rate: int = 16000,
-        chunk_duration: float = 0.1,
+        chunk_duration: float = 0.05,
         buffer_duration: float = 3.0,
         silence_threshold: float = 0.01,
         min_silence_duration: float = 0.6,
@@ -82,52 +81,73 @@ class JarvisSTT:
         self.asr_model.eval()
         self.asr_model.to(self.device)
 
-    def _write_temp_wav(self, audio_f32: np.ndarray) -> str:
-        audio_f32 = np.asarray(audio_f32, dtype=np.float32).flatten()
-        if audio_f32.size == 0:
-            return ""
-
-        fd, path = tempfile.mkstemp(suffix=".wav", prefix="jarvis_stt_", text=False)
-        os.close(fd)
-        sf.write(path, audio_f32, self.config.sample_rate, subtype="PCM_16")
-        return path
+        if self.device == "cuda":
+            torch.backends.cuda.matmul.allow_tf32 = True
+            try:
+                torch.set_float32_matmul_precision("high")
+            except Exception:
+                pass
 
     def record_push_to_talk(self) -> np.ndarray:
         logger.info("STT can start PUSH-TO-TALK.")
         print(f"Hold '{self.config.push_to_talk_key}' and start talking...")
 
-        buffer = []
-        recording = [False]  # mutable flag
+        sr = self.config.sample_rate
+        blocksize = int(sr * self.config.chunk_duration)
+
+        start_evt = threading.Event()
+        stop_evt = threading.Event()
+
+        def key_worker():
+            while not keyboard.is_pressed(self.config.push_to_talk_key):
+                time.sleep(0.001)
+            start_evt.set()
+
+            while keyboard.is_pressed(self.config.push_to_talk_key):
+                time.sleep(0.001)
+            stop_evt.set()
+
+        threading.Thread(target=key_worker, daemon=True).start()
+
+        chunks = bytearray()
+
+        started_logged = False
 
         def callback(indata, frames, time_info, status):
-            if keyboard.is_pressed(self.config.push_to_talk_key):
-                recording[0] = True
-                audio = indata[:, 0] if indata.ndim > 1 else indata.flatten()
-                buffer.append(audio.copy())
-            elif recording[0]:
+            nonlocal started_logged, chunks
+
+            if not start_evt.is_set():
+                return
+
+            if not started_logged:
+                started_logged = True
+                logger.info("STT Started capturing audio.")
+
+            chunks.extend(indata)
+
+            if stop_evt.is_set():
                 raise sd.CallbackStop()
 
-        with sd.InputStream(
-            samplerate=self.config.sample_rate,
-            blocksize=int(self.config.sample_rate * self.config.chunk_duration),
+        with sd.RawInputStream(
+            samplerate=sr,
+            blocksize=blocksize,
             channels=1,
-            dtype="float32",
+            dtype="int16",
+            latency="low",
             callback=callback,
         ):
-            while not keyboard.is_pressed(self.config.push_to_talk_key):
-                sd.sleep(10)
+            start_evt.wait()
+            while not stop_evt.is_set():
+                sd.sleep(5)
 
-            logger.info("STT Started capturing audio.")
-            while True:
-                if (
-                    not keyboard.is_pressed(self.config.push_to_talk_key)
-                    and recording[0]
-                ):
-                    break
-                sd.sleep(10)
-            logger.info("STT Finished capturing audio.")
+        logger.info("STT Finished capturing audio.")
 
-        return np.concatenate(buffer) if buffer else np.array([], dtype=np.float32)
+        if not chunks:
+            return np.array([], dtype=np.float32)
+
+        audio_i16 = np.frombuffer(chunks, dtype=np.int16)
+        audio_f32 = audio_i16.astype(np.float32) / 32768.0
+        return audio_f32
 
     def record_until_silence(self) -> np.ndarray:
         buffer = []
@@ -174,16 +194,16 @@ class JarvisSTT:
             return ""
 
         logger.info("STT Started transcribing.")
-        tmp_path = self._write_temp_wav(audio)
-        try:
-                out = self.asr_model.transcribe(
-                    [tmp_path], timestamps=False, verbose=False
-                )
-            text = out[0].text if hasattr(out[0], "text") else str(out[0])
-        finally:
-            if tmp_path and os.path.exists(tmp_path):
-                os.remove(tmp_path)
+        with torch.no_grad():
+            out = self.asr_model.transcribe(
+                audio=audio,
+                batch_size=1,
+                num_workers=0,
+                verbose=False,
+                timestamps=False,
+            )
 
+        text = out[0].text if hasattr(out[0], "text") else str(out[0])
         logger.info("STT Finished transcribing.")
         return text.strip()
 

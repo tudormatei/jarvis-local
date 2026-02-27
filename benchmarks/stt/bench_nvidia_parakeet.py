@@ -1,4 +1,5 @@
 import argparse
+import os
 import time
 from pathlib import Path
 
@@ -12,6 +13,25 @@ def audio_seconds(path: str) -> float:
     return float(info.frames) / float(info.samplerate)
 
 
+def pick_device(device_arg: str) -> torch.device:
+    device_arg = device_arg.lower()
+    if device_arg == "cpu":
+        # Optional: hide GPUs from torch so nothing CUDA-related can be used.
+        # Do this BEFORE any CUDA checks / model creation.
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        return torch.device("cpu")
+
+    if device_arg == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Requested --device cuda but torch.cuda.is_available() is False"
+            )
+        return torch.device("cuda")
+
+    # auto
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 @torch.inference_mode()
 def main():
     ap = argparse.ArgumentParser()
@@ -20,31 +40,70 @@ def main():
     ap.add_argument("--warmup", type=int, default=1)
     ap.add_argument("--timestamps", action="store_true")
     ap.add_argument(
-        "--amp", action="store_true", help="Use autocast FP16/BF16 on GPU if supported"
+        "--amp", action="store_true", help="Use autocast FP16 on GPU if supported"
     )
+    ap.add_argument(
+        "--device", type=str, default="auto", choices=["auto", "cpu", "cuda"]
+    )
+
+    # CPU control (optional)
+    ap.add_argument(
+        "--threads", type=int, default=None, help="torch.set_num_threads(N)"
+    )
+    ap.add_argument(
+        "--interop", type=int, default=None, help="torch.set_num_interop_threads(N)"
+    )
+
     args = ap.parse_args()
+
+    # Thread settings must be set early (best before heavy work)
+    if args.threads is not None:
+        torch.set_num_threads(args.threads)
+    if args.interop is not None:
+        torch.set_num_interop_threads(args.interop)
+
+    # Decide device
+    device = pick_device(args.device)
 
     audio_path = str(Path(args.audio).expanduser().resolve())
     dur_s = audio_seconds(audio_path)
 
     print("== Environment ==")
     print("torch:", torch.__version__)
+    print("requested device:", args.device)
+    print("selected device:", device)
     print("cuda available:", torch.cuda.is_available())
     if torch.cuda.is_available():
         print("gpu:", torch.cuda.get_device_name(0))
         print("cuda runtime:", torch.version.cuda)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(
+        "threads:",
+        torch.get_num_threads(),
+        "| interop:",
+        torch.get_num_interop_threads(),
+    )
+
+    # Load model explicitly onto chosen device
+    # Note: map_location is helpful when forcing CPU to avoid any GPU tensors during load.
+    kwargs = {}
+    if device.type == "cpu":
+        kwargs["map_location"] = "cpu"
 
     asr_model = nemo_asr.models.ASRModel.from_pretrained(
-        model_name="nvidia/parakeet-tdt-0.6b-v2"
+        model_name="nvidia/parakeet-tdt-0.6b-v2",
+        **kwargs,
     )
     asr_model.eval()
     asr_model.to(device)
 
     if device.type == "cuda":
+        # Good practice for performance (optional)
         torch.backends.cuda.matmul.allow_tf32 = True
-        torch.set_float32_matmul_precision("high")
+        try:
+            torch.set_float32_matmul_precision("high")
+        except Exception:
+            pass
 
     def run_once():
         if device.type == "cuda":
@@ -66,7 +125,7 @@ def main():
 
     print("\n== Warmup ==")
     for i in range(args.warmup):
-        dt, text, _ = run_once()
+        dt, _, _ = run_once()
         print(f"warmup {i+1}: {dt:.4f}s")
 
     print("\n== Timed runs ==")
