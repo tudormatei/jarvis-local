@@ -1,29 +1,3 @@
-#!/usr/bin/env python3
-"""
-Pocket TTS voice-clone + streaming benchmark (Windows-friendly)
-
-What it tests (per utterance):
-  - submit→first_chunk: time from "we hand text to the generator" until PocketTTS yields audio
-  - submit→first_audible (est): adds (1) first non-silence sample position + (2) output device latency estimate
-
-It also demonstrates that you DO NOT need to re-extract the voice state for each text:
-  - model is loaded once
-  - voice_state is extracted once
-  - multiple texts are generated back-to-back in the same audio OutputStream
-
-Install (inside conda env):
-  pip install pocket-tts sounddevice numpy
-
-Run examples:
-  python bench_pocket_tts_multi.py --ref reference_pcm.wav --text "Hello there" --text "Second sentence"
-  python bench_pocket_tts_multi.py --ref reference_voice.safetensors --text "One" --text "Two"
-
-Notes:
-  - Your reference WAV must be PCM (not float). If you get wave.Error: unknown format: 3,
-    convert with:
-      ffmpeg -y -i reference.wav -ac 1 -ar 24000 -c:a pcm_s16le reference_pcm.wav
-"""
-
 import argparse
 import sys
 import time

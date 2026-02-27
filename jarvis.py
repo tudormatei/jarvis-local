@@ -17,6 +17,8 @@ from utils.args import (
 
 logger = logging.getLogger(__name__)
 
+logging.getLogger("root").setLevel(logging.WARNING)
+
 
 def configure_logger(log_level):
     if log_level == LogLevel.NONE:
@@ -125,8 +127,7 @@ def main():
 
     if output_voice_enabled:
         jarvis_tts = JarvisTTS(
-            model_path="jarvis_tts/models/jarvis_v2/",
-            speaker_sample="jarvis_tts/models/jarvis_v2/reference.wav",
+            speaker_sample="jarvis_tts/reference.wav",
             ui_enabled=ui_enabled,
         )
 

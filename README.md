@@ -4,6 +4,13 @@
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
+## TODO:
+
+- Fix logging
+- Fix sound wave
+- Fix env
+
+
 ## Features
 
 - **Local LLM:** Fast, streaming responses with conversation memory using Ollama.

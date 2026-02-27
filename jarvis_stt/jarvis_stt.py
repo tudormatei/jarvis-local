@@ -101,20 +101,20 @@ PUSH_TO_TALK_KEY = "space"
 
 MODEL_NAME = "nvidia/parakeet-tdt-0.6b-v2"
 
-# _device = "cuda" if torch.cuda.is_available() else "cpu"
-# asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
-# asr_model.eval()
-# asr_model.to(_device)
+_device = "cuda" if torch.cuda.is_available() else "cpu"
+asr_model = nemo_asr.models.ASRModel.from_pretrained(model_name=MODEL_NAME)
+asr_model.eval()
+asr_model.to(_device)
 
 # Force NeMo ASR to CPU to avoid fighting XTTS for the GPU
-_device = "cpu"
-asr_model = nemo_asr.models.ASRModel.from_pretrained(
-    model_name=MODEL_NAME, map_location="cpu"
-)
-asr_model.eval()
-asr_model.to("cpu")
-torch.set_num_threads(4)
-torch.set_num_interop_threads(1)
+# _device = "cpu"
+# asr_model = nemo_asr.models.ASRModel.from_pretrained(
+#     model_name=MODEL_NAME, map_location="cpu"
+# )
+# asr_model.eval()
+# asr_model.to("cpu")
+# torch.set_num_threads(4)
+# torch.set_num_interop_threads(1)
 
 
 def _write_temp_wav(audio_f32: np.ndarray, sample_rate: int = SAMPLE_RATE) -> str:
