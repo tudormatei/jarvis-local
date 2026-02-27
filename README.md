@@ -7,9 +7,7 @@
 ## TODO:
 
 - Fix logging
-- Fix sound wave
 - Fix env
-
 
 ## Features
 

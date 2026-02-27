@@ -1,10 +1,9 @@
 import asyncio
 import logging
-import time
 import threading
 from jarvis_llm.jarvis_llm import chat_with_jarvis
 from jarvis_tts.jarvis_tts import JarvisTTS
-from jarvis_stt.jarvis_stt import transcribe_user_audio
+from jarvis_stt.jarvis_stt import JarvisSTT
 from jarvis_ui.jarvis_ui import JarvisUI
 from utils.args import (
     parse_arguments,
@@ -14,48 +13,9 @@ from utils.args import (
     PushToTalk,
     LogLevel,
 )
+from utils.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
-
-logging.getLogger("root").setLevel(logging.WARNING)
-
-
-def configure_logger(log_level):
-    if log_level == LogLevel.NONE:
-        logging.disable(logging.CRITICAL)
-        return
-
-    level = getattr(logging, log_level.name, logging.INFO)
-
-    class DeltaFormatter(logging.Formatter):
-        def __init__(self, fmt=None, datefmt=None):
-            super().__init__(fmt, datefmt)
-            self._last_time = None
-
-        def format(self, record):
-            now = time.perf_counter()
-
-            if self._last_time is None:
-                delta_ms = 0.0
-            else:
-                delta_ms = (now - self._last_time) * 1000.0
-
-            self._last_time = now
-
-            record.delta_ms = f"+{int(delta_ms)}ms"
-            return super().format(record)
-
-    handler = logging.StreamHandler()
-    handler.setFormatter(
-        DeltaFormatter(
-            "%(asctime)s - %(levelname)s - %(name)s - %(message)s (%(delta_ms)s)"
-        )
-    )
-
-    root = logging.getLogger()
-    root.setLevel(level)
-    root.handlers.clear()
-    root.addHandler(handler)
 
 
 def run_jarvis_logic(
@@ -65,6 +25,7 @@ def run_jarvis_logic(
     push_to_talk_enabled,
     jarvis_ui,
     jarvis_tts,
+    jarvis_stt,
 ):
     async def handle_conversation():
         try:
@@ -72,7 +33,7 @@ def run_jarvis_logic(
                 if not input_voice_enabled:
                     user_input = input("You: ")
                 else:
-                    user_input = transcribe_user_audio(
+                    user_input = jarvis_stt.transcribe_user_audio(
                         push_to_talk=push_to_talk_enabled
                     )
 
@@ -108,7 +69,8 @@ def run_jarvis_logic(
 
 def main():
     args = parse_arguments()
-    configure_logger(args.log)
+    setup_logging(args.log.name)
+
     input_voice_enabled = args.input == InputMode.VOICE
     output_voice_enabled = args.output == OutputMode.VOICE
     ui_enabled = args.interface == OutputInterface.UI
@@ -131,6 +93,9 @@ def main():
             ui_enabled=ui_enabled,
         )
 
+    if input_voice_enabled:
+        jarvis_stt = JarvisSTT()
+
     if ui_enabled:
         jarvis_ui = JarvisUI(html_path="jarvis_ui/ui/index.html")
         logic_thread = threading.Thread(
@@ -142,6 +107,7 @@ def main():
                 push_to_talk_enabled,
                 jarvis_ui,
                 jarvis_tts,
+                jarvis_stt,
             ),
             daemon=True,
         )
@@ -155,6 +121,7 @@ def main():
             push_to_talk_enabled,
             jarvis_ui,
             jarvis_tts,
+            jarvis_stt,
         )
 
 
