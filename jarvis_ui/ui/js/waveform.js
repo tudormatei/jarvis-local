@@ -1,98 +1,145 @@
-let audioSocket;
-
 const NUM_MARKS = 60;
-const fftSize = 256;
+const MIN_TRANSLATE = 125;
+const MAX_TRANSLATE = 225;
+
 const marksList = document.getElementById("marks");
 const marks = marksList.children;
-const minTranslateY = 125;
-const maxTranslateY = 170;
 
-const fft = new FFT(fftSize);
-const input = new Float32Array(fftSize);
-const output = fft.createComplexArray();
+let BLOCK_SIZE = 256;
+let SAMPLE_RATE = 24000;
 
-// Smoothed amplitudes for each mark
-let smoothed = new Float32Array(NUM_MARKS).fill(0);
-const SMOOTH_FACTOR = 0.3; // 0 = no smoothing, 1 = instant
+const HISTORY_SIZE = 4096;
+const sampleRing = new Float32Array(HISTORY_SIZE);
+let writeHead = 0; // total samples written (never wraps)
 
-function computeMirroredMagnitudes() {
-  const half = fftSize / 2;
-  const mags = new Float32Array(half);
-
-  let maxMag = 1e-6;
-  for (let i = 0; i < half; i++) {
-    const re = output[2 * i];
-    const im = output[2 * i + 1];
-    mags[i] = Math.sqrt(re * re + im * im);
-    if (mags[i] > maxMag) maxMag = mags[i];
+function pushSamples(float32) {
+  for (let i = 0; i < float32.length; i++) {
+    sampleRing[writeHead % HISTORY_SIZE] = float32[i];
+    writeHead++;
   }
-
-  // Normalize
-  for (let i = 0; i < half; i++) {
-    mags[i] /= maxMag;
-  }
-
-  // Mirror FFT bins across NUM_MARKS marks symmetrically
-  // First half of marks: bins 0..half-1 mapped to marks 0..NUM_MARKS/2-1
-  // Second half of marks: mirror of first half
-  const result = new Float32Array(NUM_MARKS);
-  const halfMarks = NUM_MARKS / 2;
-  for (let i = 0; i < halfMarks; i++) {
-    // Map mark index to FFT bin (skip DC bin 0, start from 1)
-    const binIndex = 1 + Math.floor((i / halfMarks) * (half / 4));
-    result[i] = mags[binIndex];
-    result[NUM_MARKS - 1 - i] = mags[binIndex]; // mirror
-  }
-  return result;
 }
 
+function readSample(absoluteIndex) {
+  if (absoluteIndex < 0 || absoluteIndex >= writeHead) return 0;
+  return sampleRing[
+    ((absoluteIndex % HISTORY_SIZE) + HISTORY_SIZE) % HISTORY_SIZE
+  ];
+}
+
+const smoothed = new Float32Array(NUM_MARKS).fill(0);
+const ATTACK = 0.55; // rise speed
+const RELEASE = 0.18; // fall speed
+
+let smoothedRMS = 0;
+const SILENCE_RMS = 0.004;
+
+function blockRMS(float32) {
+  let s = 0;
+  for (let i = 0; i < float32.length; i++) s += float32[i] * float32[i];
+  return Math.sqrt(s / float32.length);
+}
+
+let idleTime = 0;
+
+function idleAmp(markIndex, t) {
+  const a = (2 * Math.PI * markIndex) / NUM_MARKS;
+  return (
+    0.03 *
+    (0.5 +
+      0.4 * Math.sin(a * 2 + t * 1.0) +
+      0.3 * Math.sin(a * 3 - t * 0.65) +
+      0.15 * Math.sin(a * 5 + t * 0.4))
+  );
+}
+
+let gotNewFrame = false;
+
 function startAudioStream() {
-  audioSocket = new WebSocket("ws://localhost:8765");
-  audioSocket.binaryType = "arraybuffer";
+  const ws = new WebSocket("ws://localhost:8765");
+  ws.binaryType = "arraybuffer";
 
-  audioSocket.onopen = () => console.log("WebSocket opened");
+  ws.onopen = () => console.log("[waveform] connected");
 
-  audioSocket.onmessage = (event) => {
+  ws.onmessage = (event) => {
+    if (typeof event.data === "string") {
+      try {
+        const cfg = JSON.parse(event.data);
+        if (cfg.type === "config") {
+          SAMPLE_RATE = cfg.sample_rate;
+          BLOCK_SIZE = cfg.block_size;
+          console.log(`[waveform] ${SAMPLE_RATE} Hz, block=${BLOCK_SIZE}`);
+        }
+      } catch (_) {}
+      return;
+    }
     if (!(event.data instanceof ArrayBuffer)) return;
-    const float32 = new Float32Array(event.data);
 
-    for (let i = 0; i < fftSize; i++) {
-      input[i] = i < float32.length ? float32[i] : 0;
-    }
+    const samples = new Float32Array(event.data);
+    pushSamples(samples);
 
-    fft.realTransform(output, input);
-    fft.completeSpectrum(output);
-
-    const mags = computeMirroredMagnitudes();
-
-    // Apply temporal smoothing
-    for (let i = 0; i < NUM_MARKS; i++) {
-      smoothed[i] = smoothed[i] * (1 - SMOOTH_FACTOR) + mags[i] * SMOOTH_FACTOR;
-    }
+    const rms = blockRMS(samples);
+    smoothedRMS = smoothedRMS * 0.75 + rms * 0.25;
+    gotNewFrame = true;
   };
 
-  audioSocket.onerror = (err) => console.error("WebSocket error:", err);
-
-  audioSocket.onclose = () => {
-    console.log("WebSocket closed, retrying in 1s...");
-    // Decay to silence on close
-    for (let i = 0; i < NUM_MARKS; i++) smoothed[i] *= 0.95;
+  ws.onerror = (e) => console.error("[waveform] error", e);
+  ws.onclose = () => {
+    console.log("[waveform] closed, retry 1s");
     setTimeout(startAudioStream, 1000);
   };
 }
 
-function updateWaveform() {
-  for (let i = 0; i < marks.length; i++) {
-    const translateY =
-      minTranslateY + (maxTranslateY - minTranslateY) * smoothed[i];
-    const rotateValue = (360 / NUM_MARKS) * i;
-    marks[i].style.transform =
-      `rotate(${rotateValue}deg) translateY(-${translateY}px)`;
+let lastNow = performance.now();
+
+function updateWaveform(now) {
+  const dt = Math.min((now - lastNow) / 1000, 0.05); // cap at 50ms
+  lastNow = now;
+  idleTime += dt;
+
+  const isSilent = smoothedRMS < SILENCE_RMS;
+
+  if (isSilent) {
+    for (let i = 0; i < NUM_MARKS; i++) {
+      const target = idleAmp(i, idleTime);
+      smoothed[i] += (target - smoothed[i]) * 0.06;
+    }
+  } else {
+    const window = Math.min(BLOCK_SIZE * 2, HISTORY_SIZE - 1);
+    const step = window / NUM_MARKS;
+    const kernel = Math.max(1, Math.round(step * 0.6));
+
+    const raw = new Float32Array(NUM_MARKS);
+    let maxRaw = 1e-7;
+
+    for (let m = 0; m < NUM_MARKS; m++) {
+      const center = writeHead - window + m * step;
+
+      let sum = 0;
+      for (let k = -kernel; k <= kernel; k++) {
+        sum += Math.abs(readSample(Math.round(center + k)));
+      }
+      raw[m] = sum / (2 * kernel + 1);
+      if (raw[m] > maxRaw) maxRaw = raw[m];
+    }
+
+    const loudness = Math.min(1.0, smoothedRMS / 0.08);
+    const minShow = 0.1;
+
+    for (let i = 0; i < NUM_MARKS; i++) {
+      const norm = raw[i] / maxRaw; // 0..1 shape
+      const scaled = minShow + (1 - minShow) * norm * loudness;
+      const alpha = scaled > smoothed[i] ? ATTACK : RELEASE;
+      smoothed[i] += (scaled - smoothed[i]) * alpha;
+    }
   }
 
-  // Decay smoothed values toward silence when no audio
+  gotNewFrame = false;
+
   for (let i = 0; i < NUM_MARKS; i++) {
-    smoothed[i] *= 0.97;
+    const t = Math.max(0, Math.min(1, smoothed[i]));
+    const ty = MIN_TRANSLATE + (MAX_TRANSLATE - MIN_TRANSLATE) * t;
+    const r = (360 / NUM_MARKS) * i;
+    marks[i].style.transform = `rotate(${r}deg) translateY(-${ty}px)`;
   }
 
   requestAnimationFrame(updateWaveform);

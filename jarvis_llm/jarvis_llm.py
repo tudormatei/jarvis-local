@@ -8,7 +8,7 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "jarvis:1b"  # jarvis:1b, jarvis:3b, jarvis-tool
+MODEL_NAME = "jarvis:3b"  # jarvis:1b, jarvis:3b, jarvis-tool
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 conversation_history = []
