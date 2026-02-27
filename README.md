@@ -4,13 +4,9 @@
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
-## TODO:
-
-- Update TTS model to a quicker and better sounding one Qwen3 tts, f5 tts, maybe?
-
 ## Features
 
-- **Local LLM (Llama/1B):** Fast, streaming responses with conversation memory using Ollama.
+- **Local LLM:** Fast, streaming responses with conversation memory using Ollama.
 - **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using XTTSv2.
 - **Speech-to-Text (STT):** Accurate, real-time transcription with NVIDIA Parakeet.
 - **Push-to-Talk:** Optional mode for precise voice input control.
@@ -19,7 +15,7 @@
 - **Cross-platform:** Designed for Windows, but adaptable to Linux/Mac.
 - **UI or CLI:** Choose between a graphical interface or command-line.
 
-## Pipeline Latency
+## Latency Evaluation
 
 This evaluation measures system latency **after the user finishes speaking**.  
 Microphone capture duration is excluded since the user is actively talking during that time.
@@ -118,7 +114,7 @@ conda activate jarvis-local
 
 ---
 
-### Updating the lockfiles (maintainers only)
+### Updating the environment (maintainers only)
 
 After installing or changing any dependencies, regenerate and commit the lockfiles:
 
