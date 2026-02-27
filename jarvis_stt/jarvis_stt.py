@@ -62,6 +62,20 @@ class JarvisSTT:
 
         import nemo.collections.asr as nemo_asr
 
+        # kill nemo logging
+        lg = logging.getLogger("nemo_logger")
+        for h in list(lg.handlers):
+            lg.removeHandler(h)
+        lg.propagate = False
+        lg.disabled = True
+
+        for name in ("lhotse", "nemo.collections.common.data.lhotse"):
+            lg = logging.getLogger(name)
+            for h in list(lg.handlers):
+                lg.removeHandler(h)
+            lg.propagate = False
+            lg.disabled = True
+
         self.asr_model = nemo_asr.models.ASRModel.from_pretrained(
             model_name=self.config.model_name
         )
@@ -162,7 +176,9 @@ class JarvisSTT:
         logger.info("STT Started transcribing.")
         tmp_path = self._write_temp_wav(audio)
         try:
-            out = self.asr_model.transcribe([tmp_path], timestamps=False, verbose=False)
+                out = self.asr_model.transcribe(
+                    [tmp_path], timestamps=False, verbose=False
+                )
             text = out[0].text if hasattr(out[0], "text") else str(out[0])
         finally:
             if tmp_path and os.path.exists(tmp_path):

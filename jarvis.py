@@ -2,9 +2,7 @@ import asyncio
 import logging
 import threading
 from jarvis_llm.jarvis_llm import chat_with_jarvis
-from jarvis_tts.jarvis_tts import JarvisTTS
-from jarvis_stt.jarvis_stt import JarvisSTT
-from jarvis_ui.jarvis_ui import JarvisUI
+
 from utils.args import (
     parse_arguments,
     InputMode,
@@ -28,6 +26,7 @@ def run_jarvis_logic(
     jarvis_stt,
 ):
     async def handle_conversation():
+        print("JARVIS: Initialized.")
         try:
             while True:
                 if not input_voice_enabled:
@@ -70,6 +69,10 @@ def run_jarvis_logic(
 def main():
     args = parse_arguments()
     setup_logging(args.log.name)
+
+    from jarvis_tts.jarvis_tts import JarvisTTS
+    from jarvis_stt.jarvis_stt import JarvisSTT
+    from jarvis_ui.jarvis_ui import JarvisUI
 
     input_voice_enabled = args.input == InputMode.VOICE
     output_voice_enabled = args.output == OutputMode.VOICE

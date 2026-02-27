@@ -2,9 +2,6 @@ import logging
 import time
 
 
-# ---------------------------
-# Formatter: adds (+Xms)
-# ---------------------------
 class DeltaFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
@@ -18,9 +15,6 @@ class DeltaFormatter(logging.Formatter):
         return super().format(record)
 
 
-# ---------------------------
-# Filters: drop specific spam
-# ---------------------------
 class DropNoise(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
@@ -38,6 +32,25 @@ class DropNoise(logging.Filter):
             return False
 
         return True
+
+
+class AllowOnlyJarvis(logging.Filter):
+    """
+    Allow only logs from our code (main/stt/tts/llm/ui).
+    Everything else is dropped.
+    """
+
+    ALLOW_PREFIXES = (
+        "__main__",
+        "jarvis_stt",
+        "jarvis_tts",
+        "jarvis_llm",
+        "jarvis_ui",
+    )
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        name = record.name or ""
+        return name.startswith(self.ALLOW_PREFIXES)
 
 
 class DropLhotseSpam(logging.Filter):
@@ -74,6 +87,7 @@ def setup_logging(level="INFO") -> None:
     )
 
     # Attach filters
+    handler.addFilter(AllowOnlyJarvis())
     handler.addFilter(DropNoise())
     handler.addFilter(DropLhotseSpam())
 
@@ -99,6 +113,7 @@ def setup_logging(level="INFO") -> None:
     # NeMo / Lightning / Lhotse tend to be insane: keep only errors
     nemo_to_error = [
         "nemo",
+        "nemo_logger",
         "nemo.utils",
         "lightning",
         "pytorch_lightning",

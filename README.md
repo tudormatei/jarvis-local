@@ -6,7 +6,7 @@
 
 ## TODO:
 
-- Fix logging
+- Optimize code and logging
 - Fix env
 
 ## Features

@@ -1,5 +1,6 @@
 pocket-tts
 sounddevice 
 scipy
+huggingface_hub
 torch==2.6.0
 torchaudio==2.6.0
