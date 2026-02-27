@@ -8,7 +8,7 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "jarvis:3b"  # jarvis:1b, jarvis:3b, jarvis-tool
+MODEL_NAME = "jarvis:1b"  # jarvis:1b, jarvis:3b, jarvis-tool
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 conversation_history = []
@@ -21,6 +21,23 @@ tool_registry = {
     "get_weather_report": get_weather_report,
     "play_song": play_song,
 }
+
+TERMINATORS = {".", "!", "?"}
+CLOSERS = {'"', "'", ")", "]", "}"}
+
+ABBREV_SUFFIXES = (
+    "mr.",
+    "mrs.",
+    "ms.",
+    "dr.",
+    "jr.",
+    "sr.",
+    "e.g.",
+    "i.e.",
+    "vs.",
+    "etc.",
+    "approx.",
+)
 
 
 def detect_and_handle_tool_call(response_text):
@@ -68,21 +85,51 @@ def update_conversation_history(user_input, assistant_response):
         conversation_history.pop(0)
 
 
-def handle_sentence_endings(full_response):
-    # Regex to detect a sentence ending with ., !, or ? — possibly followed by quotes or brackets
-    sentence_endings_pattern = r'^(.*?[.!?]["\')\]]?)(?=\s|$)'
+def handle_sentence_endings(buf: str):
+    if not buf:
+        return None, buf
 
-    # Find the first match of a complete sentence
-    match = re.match(sentence_endings_pattern, full_response)
+    n = len(buf)
+    i = 0
 
-    if match:
-        sentence = match.group(1).strip()
-        remaining_text = full_response[len(match.group(0)) :].strip()
-    else:
-        sentence = None
-        remaining_text = full_response.strip()
+    while i < n:
+        ch = buf[i]
 
-    return sentence, remaining_text
+        if ch in TERMINATORS:
+            if (
+                ch == "."
+                and i > 0
+                and i + 1 < n
+                and buf[i - 1].isdigit()
+                and buf[i + 1].isdigit()
+            ):
+                i += 1
+                continue
+
+            if ch == "." and i + 1 < n and buf[i + 1] == ".":
+                # consume the whole run of dots
+                k = i + 2
+                while k < n and buf[k] == ".":
+                    k += 1
+                i = k
+                continue
+
+            j = i + 1
+            while j < n and buf[j] in CLOSERS:
+                j += 1
+
+            sentence = buf[:j].strip()
+
+            lower = sentence.lower()
+            if lower.endswith(ABBREV_SUFFIXES):
+                return None, buf  # wait for more context
+
+            remaining = buf[j:].lstrip()
+            return sentence, remaining
+
+        i += 1
+
+    return None, buf
 
 
 async def chat_with_jarvis(input_text):
@@ -122,7 +169,7 @@ async def chat_with_jarvis(input_text):
         update_conversation_history(input_text, full_response)
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"LLM Error: {e}")
 
 
 async def main():
