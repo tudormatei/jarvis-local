@@ -219,7 +219,7 @@ Double-click to launch.
 - Ollama must be installed on the system.
 - Required models must be downloaded beforehand.
 - The first launch may take longer due to model initialization.
-- For debugging, remove `--windowed` to see console output.
+- For debugging, remove `--windowed` to see console output, or change `console=True` in the `.spec` file.
 
 ## License
 
