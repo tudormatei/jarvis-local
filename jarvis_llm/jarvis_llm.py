@@ -3,6 +3,10 @@ import asyncio
 import re
 import ollama
 import logging
+import os
+import requests
+import subprocess
+import time
 
 from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
@@ -38,6 +42,80 @@ ABBREV_SUFFIXES = (
     "etc.",
     "approx.",
 )
+
+
+def get_ollama_base_url() -> str:
+    """
+    Returns the Ollama base URL.
+    Ollama commonly uses OLLAMA_HOST, e.g.:
+      - http://127.0.0.1:11434
+      - http://localhost:11434
+    If not set, default to localhost:11434.
+    """
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").strip()
+
+    if "://" not in host:
+        host = "http://" + host
+
+    return host.rstrip("/")
+
+
+def ollama_is_healthy(base_url: str) -> bool:
+    """
+    Health check: Ollama serves /api/tags reliably when it's up.
+    (Alternatively /api/version exists in newer builds, but tags is common.)
+    """
+    try:
+        r = requests.get(f"{base_url}/api/tags", timeout=0.8)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def ensure_ollama_running(
+    start_if_missing: bool = True, wait_seconds: float = 10.0
+) -> str:
+    """
+    Ensures Ollama is reachable. Returns the base URL to use.
+
+    - Uses OLLAMA_HOST if provided, else http://127.0.0.1:11434
+    - Optionally starts 'ollama serve'
+    - Waits until healthy or times out
+    """
+    base_url = get_ollama_base_url()
+
+    if ollama_is_healthy(base_url):
+        return base_url
+
+    if not start_if_missing:
+        raise RuntimeError(f"Ollama not reachable at {base_url}")
+
+    try:
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            "Ollama is not installed or not in PATH. Install Ollama and ensure 'ollama' is available in PATH."
+        ) from e
+
+    # Wait for it to come up
+    deadline = time.time() + wait_seconds
+    while time.time() < deadline:
+        if ollama_is_healthy(base_url):
+            return base_url
+        time.sleep(0.25)
+
+    raise RuntimeError(
+        f"Started Ollama but it did not become ready at {base_url} within {wait_seconds}s"
+    )
+
+
+ensure_ollama_running()
 
 
 def detect_and_handle_tool_call(response_text):

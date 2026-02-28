@@ -157,6 +157,58 @@ python jarvis.py --input text --output voice --interface cli
 - Do **not** use `--push-to-talk` with `--input text`.
 - For UI mode, a browser window will open for interaction.
 
+## Building a Windows Executable
+
+You can package **JARVIS Local** into a standalone Windows executable using PyInstaller.
+
+### 1. Install PyInstaller
+
+Activate your conda environment:
+
+```sh
+conda activate jarvis
+pip install pyinstaller
+```
+
+---
+
+### 2. Build the Executable
+
+From the project root directory, run:
+
+```sh
+pyinstaller jarvis_launcher.py ^
+  --name Jarvis ^
+  --onedir ^
+  --clean ^
+  --noconfirm ^
+  --windowed ^
+  --icon=jarvis_ui\ui\assets\icon.ico ^
+  --add-data "jarvis_ui\ui;jarvis_ui\ui" ^
+  --add-data "jarvis_tts\reference.wav;jarvis_tts"
+```
+
+---
+
+### 3. Run the Application
+
+After building, the executable will be located at:
+
+```
+dist/Jarvis/Jarvis.exe
+```
+
+Double-click to launch.
+
+---
+
+### Notes
+
+- Ollama must be installed on the system.
+- Required models must be downloaded beforehand.
+- The first launch may take longer due to model initialization.
+- For debugging, remove `--windowed` to see console output.
+
 ## License
 
 This project is for personal, non-commercial use. See individual model licenses for details.
