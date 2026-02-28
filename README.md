@@ -4,6 +4,11 @@
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
+## TODO:
+
+- Fix packaging to exe make it work
+- Ensure gracefully quitting everything closing all threads and all connections
+
 ## Features
 
 - **Local LLM:** Fast, streaming responses with conversation memory using Ollama.
@@ -177,15 +182,22 @@ pip install pyinstaller
 From the project root directory, run:
 
 ```sh
+pyinstaller Jarvis.spec --clean --noconfirm
+```
+
+Or to generate a new spec file:
+
+```sh
 pyinstaller jarvis_launcher.py ^
   --name Jarvis ^
   --onedir ^
   --clean ^
   --noconfirm ^
-  --windowed ^
   --icon=jarvis_ui\ui\assets\icon.ico ^
   --add-data "jarvis_ui\ui;jarvis_ui\ui" ^
-  --add-data "jarvis_tts\reference.wav;jarvis_tts"
+  --add-data "jarvis_tts\reference.wav;jarvis_tts" ^
+  --collect-all pocket_tts ^
+  --collect-all nemo
 ```
 
 ---

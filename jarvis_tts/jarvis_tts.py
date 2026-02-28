@@ -7,6 +7,8 @@ import websockets
 import queue
 import logging
 from pocket_tts import TTSModel
+import json
+
 
 logger = logging.getLogger(__name__)
 
@@ -167,8 +169,6 @@ class JarvisTTS:
             logger.debug(f"WebSocket send error: {e}")
 
     def _start_websocket_server(self):
-        import json
-
         async def handler(websocket):
             logger.info("TTS WS client connected")
             self.websocket_clients.add(websocket)

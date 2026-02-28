@@ -9,12 +9,17 @@ from utils.args import (
     OutputMode,
     OutputInterface,
     PushToTalk,
-    LogLevel,
 )
 from utils.logging_config import setup_logging
+import sys
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
+def resource_path(rel_path: str) -> str:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return str(base / rel_path)
 
 def run_jarvis_logic(
     input_voice_enabled,
@@ -92,7 +97,7 @@ def main():
 
     if output_voice_enabled:
         jarvis_tts = JarvisTTS(
-            speaker_sample="jarvis_tts/reference.wav",
+            speaker_sample=resource_path("jarvis_tts/reference.wav"),
             ui_enabled=ui_enabled,
         )
 
@@ -100,7 +105,7 @@ def main():
         jarvis_stt = JarvisSTT()
 
     if ui_enabled:
-        jarvis_ui = JarvisUI(html_path="jarvis_ui/ui/index.html")
+        jarvis_ui = JarvisUI(html_path=resource_path("jarvis_ui/ui/index.html"))
         logic_thread = threading.Thread(
             target=run_jarvis_logic,
             args=(

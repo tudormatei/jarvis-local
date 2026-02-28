@@ -38,6 +38,7 @@ Speech formatting constraints:
 - No excessive punctuation.
 - No ellipses unless intentional for tone.
 - Do not ramble.
+- Do not respond with quotes
 
 Behavioral rules:
 - Answer directly.
