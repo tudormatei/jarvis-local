@@ -4,15 +4,10 @@
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
 
-## TODO:
-
-- Optimize code and logging
-- Fix env
-
 ## Features
 
 - **Local LLM:** Fast, streaming responses with conversation memory using Ollama.
-- **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using XTTSv2.
+- **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using Pocket TTS.
 - **Speech-to-Text (STT):** Accurate, real-time transcription with NVIDIA Parakeet.
 - **Push-to-Talk:** Optional mode for precise voice input control.
 - **Text Mode:** CLI-based chat for keyboard-only interaction.
@@ -101,8 +96,14 @@ cd jarvis-local
 ### 2. Recreate the conda environment
 
 ```sh
-conda env create -f environment-lock.yml
-conda activate jarvis-local
+conda create -n jarvis python=3.11 -y
+conda activate jarvis
+```
+
+### 3. Install project requirements
+
+```sh
+pip install -r requirements.txt
 ```
 
 > If you run into issues with PyTorch not finding CUDA, reinstall it manually:
@@ -111,31 +112,11 @@ conda activate jarvis-local
 > pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --index-url https://download.pytorch.org/whl/cu124
 > ```
 
-### 3. Download models
+### 4. Download models
 
 - **LLM** Uses Ollama to download and run models locally. You can download your own model from the archive, add personality to it using a Modelfile and replace `MODEL_NAME = "jarvis:1b"` inside `jarvis_llm/jarvis_llm.py` with the selected model
-- **TTS:** The finetuned model is already included in the repository.
+- **TTS:** Pocket TTS model is automatically pulled from Huggingface.
 - **STT:** NVIDIA Parakeet model is auto-downloaded on first run.
-
----
-
-### Updating the environment (maintainers only)
-
-After installing or changing any dependencies, regenerate and commit the lockfiles:
-
-```sh
-# Full conda export (includes pip packages, Python version, and conda base packages)
-conda env export > environment-lock.yml
-
-# Pure pip lockfile (backup, useful if conda env create fails)
-pip freeze > requirements-lock.txt
-
-git add environment-lock.yml requirements-lock.txt
-git commit -m "chore: update environment lockfiles"
-```
-
-> **Note:** `environment-lock.yml` is the source of truth. `requirements-lock.txt` is a fallback.  
-> Do not manually edit either file — always regenerate them from the live environment.
 
 ## Usage
 
@@ -183,7 +164,7 @@ This project is for personal, non-commercial use. See individual model licenses 
 ## Acknowledgments
 
 - [Ollama](https://ollama.com/) for local LLM serving
-- [Coqui TTS](https://github.com/coqui-ai/TTS) for XTTS + finetuning
+- [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) for TTS with streaming capabilities and voice cloning
 - [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) for fast STT
 - Open source community for tools and inspiration
 

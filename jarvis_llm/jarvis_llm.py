@@ -8,7 +8,7 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "jarvis:1b"  # jarvis:1b, jarvis:3b, jarvis-tool
+MODEL_NAME = "jarvis:1b-new"  # jarvis:1b, jarvis:3b, jarvis-tool
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 conversation_history = []
@@ -76,8 +76,8 @@ def detect_and_handle_tool_call(response_text):
 
 def update_conversation_history(user_input, assistant_response):
     # Append user input and assistant response to the conversation history
-    conversation_history.append({"role": "user", "content": user_input})
-    conversation_history.append({"role": "assistant", "content": assistant_response})
+    conversation_history.append({"role": "User", "content": user_input})
+    conversation_history.append({"role": "Assistant", "content": assistant_response})
 
     # Keep only the last N interactions (where each interaction is a user-assistant pair)
     while len(conversation_history) > MAX_INTERACTIONS * 2:

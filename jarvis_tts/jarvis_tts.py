@@ -58,7 +58,7 @@ class JarvisTTS:
             threading.Thread(target=self._websocket_sender_thread, daemon=True).start()
 
     def speak(self, text: str):
-        logger.info("TTS received llm response.")
+        logger.info("TTS received LLM response.")
         chunks = self.model.generate_audio_stream(self.voice_state, text)
 
         first_chunk_seen = False
@@ -67,7 +67,7 @@ class JarvisTTS:
 
         for chunk in chunks:
             if not first_chunk_seen:
-                logger.info("TTS first chunk received.")
+                logger.info("TTS first audio chunk received.")
                 first_chunk_seen = True
 
             audio = (

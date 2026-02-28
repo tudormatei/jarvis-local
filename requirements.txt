@@ -1,8 +1,15 @@
 pocket-tts
-sounddevice
 scipy
 huggingface_hub
 --extra-index-url https://download.pytorch.org/whl/cu124
 torch==2.6.0+cu124
 torchaudio==2.6.0+cu124
+torchvision==0.21.0+cu124
 nemo_toolkit[asr]
+ollama
+keyboard
+numpy
+pywebview
+sounddevice
+selenium
+websockets
