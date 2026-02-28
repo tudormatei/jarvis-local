@@ -1,13 +1,8 @@
 # JARVIS Local Assistant
 
-**JARVIS Local** is a modular, privacy-focused voice/text assistant that runs entirely on your machine. It combines local Large Language Model (LLM) inference, high-quality Text-to-Speech (TTS), and fast Speech-to-Text (STT) for a seamless conversational AI experience—no cloud required.
+**JARVIS Local** is a modular, privacy-focused voice/text assistant inspired by the iconic Iron Man AI that runs entirely on your machine. It combines local Large Language Model (LLM) inference, high-quality Text-to-Speech (TTS), and fast Speech-to-Text (STT) for a seamless conversational AI experience—no cloud required.
 
 [![JARVIS](docs/ui.gif)](docs/ui.gif)
-
-## TODO:
-
-- Fix packaging to exe make it work
-- Ensure gracefully quitting everything closing all threads and all connections
 
 ## Features
 
