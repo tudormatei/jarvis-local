@@ -19,6 +19,7 @@ class JarvisTTS:
         speaker_sample="./reference.wav",
         ui_enabled=False,
         sample_rate=24000,
+        shutdown_event: threading.Event = None,
         block_size=256,
         websocket_host="localhost",
         websocket_port=8765,
@@ -30,7 +31,7 @@ class JarvisTTS:
         self.ui_enabled = ui_enabled
         self.latest_block = None
         self.is_playing = False
-        self._stop_sender = threading.Event()
+        self._stop_event = shutdown_event if shutdown_event is not None else threading.Event()
 
         self.websocket_host = websocket_host
         self.websocket_port = websocket_port
@@ -38,6 +39,7 @@ class JarvisTTS:
 
         self.websocket_clients = set()
         self.websocket_loop = None
+        self._websocket_server = None          # keep a reference so we can close it
 
         logger.info("TTS Loading Pocket TTS model...")
         self.model = TTSModel.load_model()
@@ -55,11 +57,22 @@ class JarvisTTS:
         self.voice_state = self.model.get_state_for_audio_prompt(speaker_sample)
         logger.info("TTS Finished voice state.")
 
-        threading.Thread(target=self._audio_player_thread, daemon=True).start()
+        self._player_thread = threading.Thread(
+            target=self._audio_player_thread, daemon=True, name="tts-player"
+        )
+        self._player_thread.start()
+
         if self.ui_enabled:
-            threading.Thread(target=self._websocket_sender_thread, daemon=True).start()
+            self._sender_thread = threading.Thread(
+                target=self._websocket_sender_thread, daemon=True, name="tts-ws-sender"
+            )
+            self._sender_thread.start()
+        else:
+            self._sender_thread = None
 
     def speak(self, text: str):
+        if self._stop_event.is_set():
+            return
         logger.info("TTS received LLM response.")
         chunks = self.model.generate_audio_stream(self.voice_state, text)
 
@@ -68,6 +81,8 @@ class JarvisTTS:
         peak = 1.0
 
         for chunk in chunks:
+            if self._stop_event.is_set():
+                break
             if not first_chunk_seen:
                 logger.info("TTS first audio chunk received.")
                 first_chunk_seen = True
@@ -95,7 +110,7 @@ class JarvisTTS:
                 block = full[start : start + self.BLOCK_SIZE]
                 self.audio_queue.put(block)
 
-        if leftover.size:
+        if not self._stop_event.is_set() and leftover.size:
             block = np.pad(
                 leftover, (0, self.BLOCK_SIZE - leftover.size), mode="constant"
             )
@@ -105,42 +120,89 @@ class JarvisTTS:
         logger.info("TTS finished inference (all chunks queued).")
 
     def stop(self):
-        self._stop_sender.set()
-        while not self.audio_queue.empty():
+        """Signal all TTS threads to stop and wait for them to finish."""
+        logger.info("Shutdown: TTS stop() called.")
+        self._stop_event.set()
+
+        # Drain the queue so the player thread unblocks
+        self.audio_queue.put(None)  # sentinel to unblock queue.get()
+        while True:
             try:
                 self.audio_queue.get_nowait()
-            except Exception:
+            except queue.Empty:
                 break
+
+        # Close all websocket clients and shut down the event loop
+        if self.websocket_loop is not None and self.websocket_loop.is_running():
+            logger.info("Shutdown: closing TTS websocket clients...")
+            for ws in list(self.websocket_clients):
+                asyncio.run_coroutine_threadsafe(ws.close(), self.websocket_loop)
+            # Close the server — this resolves server.wait_closed() inside
+            # run_server(), letting run_until_complete() finish cleanly.
+            # Stopping the loop directly would raise RuntimeError because
+            # the run_until_complete future never completes.
+            if self._websocket_server is not None:
+                self.websocket_loop.call_soon_threadsafe(self._websocket_server.close)
+
+        # Join threads (short timeout — they're daemons so process will exit anyway)
+        if self._player_thread.is_alive():
+            logger.info("Shutdown: waiting for TTS player thread...")
+            self._player_thread.join(timeout=3)
+            if self._player_thread.is_alive():
+                logger.warning("Shutdown: TTS player thread did not exit cleanly.")
+            else:
+                logger.info("Shutdown: TTS player thread finished.")
+
+        if self._sender_thread is not None and self._sender_thread.is_alive():
+            logger.info("Shutdown: waiting for TTS sender thread...")
+            self._sender_thread.join(timeout=3)
+            if self._sender_thread.is_alive():
+                logger.warning("Shutdown: TTS sender thread did not exit cleanly.")
+            else:
+                logger.info("Shutdown: TTS sender thread finished.")
+
+        logger.info("Shutdown: TTS stop() complete.")
 
     def _audio_player_thread(self):
         if self.ui_enabled and self.websocket_loop is None:
             self._start_websocket_server()
 
-        with sd.OutputStream(
-            samplerate=self.SAMPLE_RATE,
-            channels=1,
-            blocksize=self.BLOCK_SIZE,
-            dtype="float32",
-            latency="low",
-        ) as stream:
-            while True:
-                block = self.audio_queue.get()
+        try:
+            with sd.OutputStream(
+                samplerate=self.SAMPLE_RATE,
+                channels=1,
+                blocksize=self.BLOCK_SIZE,
+                dtype="float32",
+                latency="low",
+            ) as stream:
+                while not self._stop_event.is_set():
+                    try:
+                        block = self.audio_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        continue
 
-                if block is None:
-                    self.is_playing = False
-                    self.latest_block = None
-                    logger.info("TTS playback finished.")
-                    continue
+                    if block is None:
+                        self.is_playing = False
+                        self.latest_block = None
+                        logger.info("TTS playback finished.")
+                        continue
 
-                self.latest_block = block.astype(np.float32)
-                self.is_playing = True
-                stream.write(block)  # blocks for ~block_duration seconds
+                    self.latest_block = block.astype(np.float32)
+                    self.is_playing = True
+                    stream.write(block)
+        except Exception as e:
+            if not self._stop_event.is_set():
+                logger.error(f"TTS player thread error: {e}")
+        finally:
+            self.latest_block = None
+            self.is_playing = False
+            logger.info("Shutdown: TTS audio player thread exited.")
 
     def _websocket_sender_thread(self):
         target_interval = self.block_duration
         next_send = time.perf_counter()
 
-        while not self._stop_sender.is_set():
+        while not self._stop_event.is_set():
             now = time.perf_counter()
 
             if now >= next_send:
@@ -161,6 +223,8 @@ class JarvisTTS:
 
             sleep_for = max(0.0, next_send - time.perf_counter() - 0.001)
             time.sleep(sleep_for)
+
+        logger.info("Shutdown: TTS websocket sender thread exited.")
 
     async def _safe_ws_send(self, ws, payload: bytes):
         try:
@@ -193,16 +257,19 @@ class JarvisTTS:
             server = await websockets.serve(
                 handler, self.websocket_host, self.websocket_port
             )
+            self._websocket_server = server
             logger.info(
                 f"TTS WS server on ws://{self.websocket_host}:{self.websocket_port}"
             )
             await server.wait_closed()
+            logger.info("Shutdown: TTS WS server closed.")
 
         self.websocket_loop = asyncio.new_event_loop()
         threading.Thread(
             target=self.websocket_loop.run_until_complete,
             args=(run_server(),),
             daemon=True,
+            name="tts-ws-server",
         ).start()
 
 

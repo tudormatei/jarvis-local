@@ -1,3 +1,4 @@
+import threading
 import webview
 import logging
 
@@ -12,28 +13,36 @@ class Api:
 
 
 class JarvisUI:
-    def __init__(self, width=400, height=700, html_path="./ui/index.html"):
+    def __init__(self, width=400, height=700, html_path="./ui/index.html", shutdown_event: threading.Event = None):
         self.html_path = html_path
         self.width = width
         self.height = height
         self.window = None
         self.voice_finished = False
         self.muted = False
+        self.shutdown_event = shutdown_event
 
         self.api = Api()
 
     def print_message(self, isUser, message):
+        if self.window is None:
+            return
         escaped_message = message.replace("'", "\\'").replace('"', '\\"')
         js_boolean = 'true' if isUser else 'false'
         self.window.evaluate_js(
             f"displayLine({js_boolean}, '{escaped_message}')")
 
     def showLoader(self, show):
+        if self.window is None:
+            return
         js_boolean = 'true' if show else 'false'
         self.window.evaluate_js(f"displayLoader({js_boolean})")
 
     def cleanup(self):
-        logger.info("UI Closing window.")
+        logger.info("Shutdown: UI window closed, setting shutdown event...")
+        if self.shutdown_event is not None:
+            self.shutdown_event.set()
+        logger.info("Shutdown: shutdown event set.")
 
     def start(self):
         self.window = webview.create_window(

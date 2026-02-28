@@ -39,6 +39,7 @@ class JarvisSTT:
         min_silence_duration: float = 0.6,
         push_to_talk_key: str = "space",
         model_name: str = "nvidia/parakeet-tdt-0.6b-v2",
+        shutdown_event: threading.Event = None,
     ):
         self.config = JarvisSTTConfig(
             sample_rate=sample_rate,
@@ -49,6 +50,8 @@ class JarvisSTT:
             push_to_talk_key=push_to_talk_key,
             model_name=model_name,
         )
+
+        self._stop_event = shutdown_event if shutdown_event is not None else threading.Event()
 
         resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = resolved_device
@@ -88,6 +91,12 @@ class JarvisSTT:
             except Exception:
                 pass
 
+    def stop(self):
+        """Signal all blocking STT calls to abort as soon as possible."""
+        logger.info("Shutdown: STT stop() called.")
+        self._stop_event.set()
+        logger.info("Shutdown: STT stop() complete.")
+
     def record_push_to_talk(self) -> np.ndarray:
         logger.info("STT can start PUSH-TO-TALK.")
         print(f"Hold '{self.config.push_to_talk_key}' and start talking...")
@@ -99,18 +108,26 @@ class JarvisSTT:
         stop_evt = threading.Event()
 
         def key_worker():
+            # Wait for key press — also bail if shutdown fires
             while not keyboard.is_pressed(self.config.push_to_talk_key):
+                if self._stop_event.is_set():
+                    start_evt.set()   # unblock start_evt.wait() below
+                    stop_evt.set()    # signal the stream to stop immediately
+                    return
                 time.sleep(0.001)
             start_evt.set()
 
+            # Wait for key release — also bail if shutdown fires
             while keyboard.is_pressed(self.config.push_to_talk_key):
+                if self._stop_event.is_set():
+                    stop_evt.set()
+                    return
                 time.sleep(0.001)
             stop_evt.set()
 
-        threading.Thread(target=key_worker, daemon=True).start()
+        threading.Thread(target=key_worker, daemon=True, name="stt-key-worker").start()
 
         chunks = bytearray()
-
         started_logged = False
 
         def callback(indata, frames, time_info, status):
@@ -123,10 +140,11 @@ class JarvisSTT:
                 started_logged = True
                 logger.info("STT Started capturing audio.")
 
-            chunks.extend(indata)
-
-            if stop_evt.is_set():
+            # Abort stream if shutdown fired or key released
+            if self._stop_event.is_set() or stop_evt.is_set():
                 raise sd.CallbackStop()
+
+            chunks.extend(indata)
 
         with sd.RawInputStream(
             samplerate=sr,
@@ -136,9 +154,21 @@ class JarvisSTT:
             latency="low",
             callback=callback,
         ):
-            start_evt.wait()
+            # Wait for key press, but wake up every 50ms to check shutdown
+            while not start_evt.is_set():
+                if self._stop_event.is_set():
+                    logger.info("Shutdown: STT push-to-talk aborted before keypress.")
+                    return np.array([], dtype=np.float32)
+                time.sleep(0.05)
+
             while not stop_evt.is_set():
+                if self._stop_event.is_set():
+                    break
                 sd.sleep(5)
+
+        if self._stop_event.is_set():
+            logger.info("Shutdown: STT push-to-talk recording aborted.")
+            return np.array([], dtype=np.float32)
 
         logger.info("STT Finished capturing audio.")
 
@@ -160,6 +190,11 @@ class JarvisSTT:
 
         def callback(indata, frames, time_info, status):
             nonlocal silence_chunks
+
+            # Abort stream immediately on shutdown
+            if self._stop_event.is_set():
+                raise sd.CallbackStop()
+
             audio = indata[:, 0] if indata.ndim > 1 else indata.flatten()
             buffer.append(audio.copy())
 
@@ -177,12 +212,18 @@ class JarvisSTT:
         ):
             while True:
                 sd.sleep(int(self.config.chunk_duration * 1000))
+                if self._stop_event.is_set():
+                    logger.info("Shutdown: STT silence-mode recording aborted.")
+                    break
                 if silence_chunks >= min_silence_chunks or len(buffer) >= max_chunks:
                     break
 
         return np.concatenate(buffer) if buffer else np.array([], dtype=np.float32)
 
     def transcribe_user_audio(self, *, push_to_talk: bool) -> str:
+        if self._stop_event.is_set():
+            return ""
+
         if push_to_talk:
             audio = self.record_push_to_talk()
         else:
@@ -191,6 +232,9 @@ class JarvisSTT:
             logger.info("STT Finished capturing audio.")
 
         if audio.size == 0:
+            return ""
+
+        if self._stop_event.is_set():
             return ""
 
         logger.info("STT Started transcribing.")
@@ -277,3 +321,4 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("Stopping STT...")
+        stt.stop()
