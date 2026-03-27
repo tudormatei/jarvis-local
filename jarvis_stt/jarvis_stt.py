@@ -1,11 +1,12 @@
 import logging
 from dataclasses import dataclass
-import keyboard
 import numpy as np
 import sounddevice as sd
 import torch
 import threading
 import time
+import evdev
+from evdev import ecodes
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class JarvisSTTConfig:
     push_to_talk_key: str = "space"
 
     # Model
-    model_name: str = "nvidia/parakeet-tdt-0.6b-v2"
+    # model_name: str = "nvidia/parakeet-tdt-0.6b-v2"
+    model_name: str = "nvidia/parakeet-tdt_ctc-110m"
 
 
 class JarvisSTT:
@@ -38,7 +40,7 @@ class JarvisSTT:
         silence_threshold: float = 0.01,
         min_silence_duration: float = 0.6,
         push_to_talk_key: str = "space",
-        model_name: str = "nvidia/parakeet-tdt-0.6b-v2",
+        model_name: str = "nvidia/parakeet-tdt_ctc-110m",
         shutdown_event: threading.Event = None,
     ):
         self.config = JarvisSTTConfig(
@@ -51,7 +53,9 @@ class JarvisSTT:
             model_name=model_name,
         )
 
-        self._stop_event = shutdown_event if shutdown_event is not None else threading.Event()
+        self._stop_event = (
+            shutdown_event if shutdown_event is not None else threading.Event()
+        )
 
         resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = resolved_device
@@ -108,21 +112,67 @@ class JarvisSTT:
         stop_evt = threading.Event()
 
         def key_worker():
-            # Wait for key press — also bail if shutdown fires
-            while not keyboard.is_pressed(self.config.push_to_talk_key):
+
+            KEY = ecodes.KEY_SPACE
+            KEYBOARD_DEVICES = ["/dev/input/event4", "/dev/input/event6"]
+
+            devices = []
+            for path in KEYBOARD_DEVICES:
+                try:
+                    devices.append(evdev.InputDevice(path))
+                except Exception as e:
+                    logger.warning("evdev: could not open %s: %s", path, e)
+
+            if not devices:
+                logger.error("evdev: no keyboard devices available")
+                start_evt.set()
+                stop_evt.set()
+                return
+
+            import select
+
+            # Wait for space press
+            pressed = False
+            while not pressed:
                 if self._stop_event.is_set():
-                    start_evt.set()   # unblock start_evt.wait() below
-                    stop_evt.set()    # signal the stream to stop immediately
+                    start_evt.set()
+                    stop_evt.set()
                     return
-                time.sleep(0.001)
+                fds = {d.fd: d for d in devices}
+                r, _, _ = select.select(fds.keys(), [], [], 0.05)
+                for fd in r:
+                    for event in fds[fd].read():
+                        if (
+                            event.type == ecodes.EV_KEY
+                            and event.code == KEY
+                            and event.value == 1
+                        ):
+                            pressed = True
+
             start_evt.set()
 
-            # Wait for key release — also bail if shutdown fires
-            while keyboard.is_pressed(self.config.push_to_talk_key):
+            # Wait for space release
+            while True:
                 if self._stop_event.is_set():
                     stop_evt.set()
                     return
-                time.sleep(0.001)
+                fds = {d.fd: d for d in devices}
+                r, _, _ = select.select(fds.keys(), [], [], 0.05)
+                released = False
+                for fd in r:
+                    for event in fds[fd].read():
+                        if (
+                            event.type == ecodes.EV_KEY
+                            and event.code == KEY
+                            and event.value == 0
+                        ):
+                            released = True
+                if released:
+                    break
+
+            for d in devices:
+                d.close()
+
             stop_evt.set()
 
         threading.Thread(target=key_worker, daemon=True, name="stt-key-worker").start()
