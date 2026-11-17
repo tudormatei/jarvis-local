@@ -1,11 +1,12 @@
 import logging
+import threading
+import time
 from dataclasses import dataclass
+
+from faster_whisper import WhisperModel
 import keyboard
 import numpy as np
 import sounddevice as sd
-import torch
-import threading
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class JarvisSTTConfig:
     push_to_talk_key: str = "space"
 
     # Model
-    model_name: str = "nvidia/parakeet-tdt-0.6b-v2"
+    model_name: str = "small"
 
 
 class JarvisSTT:
@@ -38,7 +39,7 @@ class JarvisSTT:
         silence_threshold: float = 0.01,
         min_silence_duration: float = 0.6,
         push_to_talk_key: str = "space",
-        model_name: str = "nvidia/parakeet-tdt-0.6b-v2",
+        model_name: str = "small",
         shutdown_event: threading.Event = None,
     ):
         self.config = JarvisSTTConfig(
@@ -53,8 +54,7 @@ class JarvisSTT:
 
         self._stop_event = shutdown_event if shutdown_event is not None else threading.Event()
 
-        resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = resolved_device
+        self.device = "cpu"
 
         logger.info(
             "Initializing JarvisSTT | model=%s | device=%s",
@@ -62,34 +62,11 @@ class JarvisSTT:
             self.device,
         )
 
-        import nemo.collections.asr as nemo_asr
-
-        # kill nemo logging
-        lg = logging.getLogger("nemo_logger")
-        for h in list(lg.handlers):
-            lg.removeHandler(h)
-        lg.propagate = False
-        lg.disabled = True
-
-        for name in ("lhotse", "nemo.collections.common.data.lhotse"):
-            lg = logging.getLogger(name)
-            for h in list(lg.handlers):
-                lg.removeHandler(h)
-            lg.propagate = False
-            lg.disabled = True
-
-        self.asr_model = nemo_asr.models.ASRModel.from_pretrained(
-            model_name=self.config.model_name
+        self.asr_model = WhisperModel(
+            self.config.model_name,
+            device=self.device,
+            compute_type="int8",
         )
-        self.asr_model.eval()
-        self.asr_model.to(self.device)
-
-        if self.device == "cuda":
-            torch.backends.cuda.matmul.allow_tf32 = True
-            try:
-                torch.set_float32_matmul_precision("high")
-            except Exception:
-                pass
 
     def stop(self):
         """Signal all blocking STT calls to abort as soon as possible."""
@@ -238,16 +215,8 @@ class JarvisSTT:
             return ""
 
         logger.info("STT Started transcribing.")
-        with torch.no_grad():
-            out = self.asr_model.transcribe(
-                audio=audio,
-                batch_size=1,
-                num_workers=0,
-                verbose=False,
-                timestamps=False,
-            )
-
-        text = out[0].text if hasattr(out[0], "text") else str(out[0])
+        segments, _ = self.asr_model.transcribe(audio, beam_size=1)
+        text = "".join(segment.text for segment in segments)
         logger.info("STT Finished transcribing.")
         return text.strip()
 
@@ -264,8 +233,6 @@ if __name__ == "__main__":
 
     stt = JarvisSTT(
         # override defaults here if needed:
-        # device=None,  # auto cuda/cpu
-        # device="cpu",
         # push_to_talk_key="space",
         # silence_threshold=0.01,
         # min_silence_duration=0.6,
