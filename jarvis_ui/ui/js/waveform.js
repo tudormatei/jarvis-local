@@ -55,7 +55,7 @@ function idleAmp(markIndex, t) {
 let gotNewFrame = false;
 
 function startAudioStream() {
-  const ws = new WebSocket("ws://localhost:8765");
+  const ws = new WebSocket("ws://localhost:8766");
   ws.binaryType = "arraybuffer";
 
   ws.onopen = () => console.log("[waveform] connected");

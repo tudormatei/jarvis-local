@@ -114,7 +114,6 @@ def main():
 
     if output_voice_enabled:
         jarvis_tts = JarvisTTS(
-            speaker_sample=resource_path("jarvis_tts/reference.wav"),
             ui_enabled=ui_enabled,
             shutdown_event=shutdown_event
         )

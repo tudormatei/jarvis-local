@@ -16,13 +16,12 @@ logger = logging.getLogger(__name__)
 class JarvisTTS:
     def __init__(
         self,
-        speaker_sample="./reference.wav",
         ui_enabled=False,
         sample_rate=24000,
         shutdown_event: threading.Event = None,
         block_size=256,
         websocket_host="localhost",
-        websocket_port=8765,
+        websocket_port=8766,
         normalize=True,
     ):
         self.SAMPLE_RATE = int(sample_rate)
@@ -42,7 +41,7 @@ class JarvisTTS:
         self._websocket_server = None          # keep a reference so we can close it
 
         logger.info("TTS Loading Pocket TTS model...")
-        self.model = TTSModel.load_model()
+        self.model = TTSModel.load_model(language="italian")
         self.SAMPLE_RATE = int(self.model.sample_rate)
         self.block_duration = self.BLOCK_SIZE / self.SAMPLE_RATE
 
@@ -53,9 +52,9 @@ class JarvisTTS:
             f"({self.SAMPLE_RATE // self.BLOCK_SIZE} blocks/sec)"
         )
 
-        logger.info("TTS Computing voice embeddings")
-        self.voice_state = self.model.get_state_for_audio_prompt(speaker_sample)
-        logger.info("TTS Finished voice state.")
+        logger.info("TTS Loading catalog voice: giovanni")
+        self.voice_state = self.model.get_state_for_audio_prompt("giovanni")
+        logger.info("TTS Catalog voice ready.")
 
         self._player_thread = threading.Thread(
             target=self._audio_player_thread, daemon=True, name="tts-player"
@@ -275,7 +274,6 @@ class JarvisTTS:
 
 if __name__ == "__main__":
     jarvis = JarvisTTS(
-        speaker_sample="./reference.wav",
         ui_enabled=True,
         block_size=256,
         normalize=True,

@@ -8,51 +8,16 @@
 
 - **Local LLM:** Fast, streaming responses with conversation memory using Ollama.
 - **Text-to-Speech (TTS):** High-quality, low-latency voice synthesis using Pocket TTS.
-- **Speech-to-Text (STT):** Accurate, real-time transcription with NVIDIA Parakeet.
+- **Speech-to-Text (STT):** Multilingual transcription with Faster-Whisper on the CPU.
 - **Push-to-Talk:** Optional mode for precise voice input control.
 - **Text Mode:** CLI-based chat for keyboard-only interaction.
 - **Configurable Logging:** Adjustable verbosity for debugging or silent operation.
 - **Cross-platform:** Designed for Windows, but adaptable to Linux/Mac.
 - **UI or CLI:** Choose between a graphical interface or command-line.
 
-## Latency Evaluation
+## Voice Processing
 
-This evaluation measures system latency **after the user finishes speaking**.  
-Microphone capture duration is excluded since the user is actively talking during that time.
-
-### Measured Stages
-
-**Speech-to-Text (transcription only)**
-
-- Transcription time: **~617 ms**
-
-**LLM Inference**
-
-- Time to first speakable token (sentence): **~395 ms**
-
-**Text-to-Speech**
-
-- TTS inference (time to first audio output): **~873 ms**
-
-### Time to First Audible Response
-
-From end-of-speech → first spoken word:
-
-- STT transcription: ~0.6 s
-- LLM first token: ~0.40 s
-- TTS first audio generation: ~0.9 s
-
-**Total latency: ~1.9 – 2.0 seconds**
-
-### Why It Feels Fast
-
-The system streams intelligently:
-
-- LLM streams tokens progressively
-- TTS begins before LLM finishes
-- Playback starts before full response is generated
-
-Because of this overlap, JARVIS begins speaking in ~2 seconds while the rest of the response is still processing.
+Speech recognition uses Faster-Whisper's multilingual `small` model with CPU int8 inference, so it works without NVIDIA CUDA. Italian speech output uses Pocket TTS's built-in `giovanni` voice; it does not require voice-cloning access. Ollama runs the language model locally. The first voice-mode launch downloads the speech models and may take longer.
 
 ## Project Structure
 
@@ -80,50 +45,52 @@ jarvis-local/
 | Requirement | Version                           |
 | ----------- | --------------------------------- |
 | OS          | Windows (tested on Windows 10/11) |
-| Python      | 3.11.11                           |
-| CUDA Driver | 12.4+                             |
-| Miniconda   | Latest                            |
+| Python      | 3.11                               |
+| Ollama      | Latest                            |
+| Microphone  | Required for voice input           |
+| Speakers    | Required for voice output          |
 
 ---
 
 ### 1. Clone the repository
 
 ```sh
-git clone https://github.com/yourusername/jarvis-local.git
+git clone https://github.com/tudormatei/jarvis-local.git
 cd jarvis-local
 ```
 
-### 2. Recreate the conda environment
+### 2. Create and activate a virtual environment
 
 ```sh
-conda create -n jarvis python=3.11 -y
-conda activate jarvis
+py -3.11 -m venv .venv
+.venv\Scripts\activate
 ```
 
 ### 3. Install project requirements
 
 ```sh
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-> If you run into issues with PyTorch not finding CUDA, reinstall it manually:
->
-> ```sh
-> pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --index-url https://download.pytorch.org/whl/cu124
-> ```
+PyTorch is installed without CUDA and speech recognition runs on the CPU, so an NVIDIA GPU is not required.
 
-### 4. Download models
+### 4. Install Ollama and download the language model
 
-- **LLM** Uses Ollama to download and run models locally. You can download your own model from the archive, add personality to it using a Modelfile and replace `MODEL_NAME = "jarvis:1b"` inside `jarvis_llm/jarvis_llm.py` with the selected model
-- **TTS:** Pocket TTS model is automatically pulled from Huggingface.
-- **STT:** NVIDIA Parakeet model is auto-downloaded on first run.
+Install Ollama from [ollama.com/download](https://ollama.com/download), then run:
+
+```sh
+ollama pull qwen2.5:3b
+```
+
+JARVIS starts Ollama automatically if it is not already running. The Faster-Whisper `small` model and Pocket TTS model are downloaded automatically the first time voice mode starts.
 
 ## Usage
 
 ### **Basic Example**
 
 ```sh
-python jarvis.py --input text --output voice --interface cli
+python jarvis.py --input voice --output voice --interface ui --push-to-talk on
 ```
 
 ### **Arguments**
@@ -224,7 +191,7 @@ This project is for personal, non-commercial use. See individual model licenses 
 
 - [Ollama](https://ollama.com/) for local LLM serving
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) for TTS with streaming capabilities and voice cloning
-- [NVIDIA Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) for fast STT
+- [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) for speech recognition
 - Open source community for tools and inspiration
 
 ---

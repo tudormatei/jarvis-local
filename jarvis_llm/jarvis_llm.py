@@ -5,6 +5,7 @@ import ollama
 import logging
 import os
 import requests
+import shutil
 import subprocess
 import time
 
@@ -12,7 +13,7 @@ from jarvis_llm.tools.tools import get_user_info, get_weather_report, play_song
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "jarvis:1b-new"  # jarvis:1b, jarvis:3b, jarvis-tool
+MODEL_NAME = "qwen2.5:3b"
 TOOLS_ENABLED = MODEL_NAME == "jarvis-tool"
 
 conversation_history = []
@@ -72,6 +73,23 @@ def ollama_is_healthy(base_url: str) -> bool:
         return False
 
 
+def get_ollama_executable() -> str:
+    executable = shutil.which("ollama")
+    if executable:
+        return executable
+
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidate = os.path.join(
+                local_app_data, "Programs", "Ollama", "ollama.exe"
+            )
+            if os.path.isfile(candidate):
+                return candidate
+
+    raise FileNotFoundError("ollama")
+
+
 def ensure_ollama_running(
     start_if_missing: bool = True, wait_seconds: float = 10.0
 ) -> str:
@@ -92,7 +110,7 @@ def ensure_ollama_running(
 
     try:
         subprocess.Popen(
-            ["ollama", "serve"],
+            [get_ollama_executable(), "serve"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
